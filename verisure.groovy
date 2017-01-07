@@ -26,25 +26,25 @@ definition(
 
 
 preferences {
-	page(name: "setupPage")
+    page(name: "setupPage")
 }
 
 
 def setupPage() {
     dynamicPage(name: "setupPage", title: "Configure Verisure", install: true, uninstall: true) {
-    
+
         section("Authentication") {
             input "username", "text", title: "Username"
             input "password", "password", title: "Password"
         }
-        
+
         def actions = location.helloHome?.getPhrases()*.label
         actions.sort()
-        
+
         section("Action when disarmed") {
-        	input "unarmedAction", "enum", title: "Action for unarmed", options: actions, required: false
-        	input "armedAction", "enum", title: "Action for armed", options: actions, required: false
-        	input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
+            input "unarmedAction", "enum", title: "Action for unarmed", options: actions, required: false
+            input "armedAction", "enum", title: "Action for armed", options: actions, required: false
+            input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
         }
     }
 }
@@ -82,32 +82,32 @@ def poll() {
         device.sendEvent(name: "alarmstate", value: alarmState)
     }
 
-	if (state.previousAlarmState == null) {
-    	state.previousAlarmState = alarmState
+    if (state.previousAlarmState == null) {
+        state.previousAlarmState = alarmState
     }
-    
+
     if (alarmState != state.previousAlarmState) {
-		log.debug("Verisure Alarm state changed, execution actions")
+        log.debug("Verisure Alarm state changed, execution actions")
         state.previousAlarmState = alarmState
         triggerActions(alarmState)
     }
-    
+
     log.debug("Verisure Alarm state updated and is: " + alarmState)
     return alarmState
 }
 
 def triggerActions(alarmState) {
-	if (alarmState == "armed" && armedAction) {
-    	executeAction(armedAction)
+    if (alarmState == "armed" && armedAction) {
+        executeAction(armedAction)
     } else if (alarmState == "unarmed" && unarmedAction) {
-    	executeAction(unarmedAction)
+        executeAction(unarmedAction)
     } else if (alarmState == "armedhome" && armedHomeAction) {
-    	executeAction(armedHomeAction)    	
+        executeAction(armedHomeAction)
     }
 }
 
 def executeAction(action) {
-	log.debug("Executing action ${action}")
+    log.debug("Executing action ${action}")
     location.helloHome?.execute(action)
 }
 
