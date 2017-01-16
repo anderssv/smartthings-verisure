@@ -49,7 +49,6 @@ def setupPage() {
     }
 }
 
-
 def installed() {
     log.debug "Verisure Installed"
     addChildDevice(app.namespace, "Verisure Alarm", "verisure-alarm", null, [alarmstate: "unknown"])
@@ -64,15 +63,20 @@ def updated() {
     initialize()
 }
 
+def uninstalled() {
+    log.debug("Uninstalling Verisure Alarm app, removing all devices")
+    removeChildDevices(getChildDevices())
+}
+
 def initialize() {
     log.debug("Scheduling Verisure Alarm updates...")
+    poll()
     schedule("? 0/1 * * * ?", poll)
 }
 
 def poll() {
     def baseUrl = "https://mypages.verisure.com"
     def loginUrl = baseUrl + "/j_spring_security_check?locale=en_GB"
-    def countrySelect = baseUrl + "/uk"
 
     def sessionCookie = login(loginUrl)
     def alarmState = getAlarmState(baseUrl, sessionCookie)
@@ -148,11 +152,6 @@ def getAlarmState(baseUrl, sessionCookie) {
         log.debug(response.data)
         return response.data.findAll { it."type" == "ARM_STATE" }[0]."status"
     }
-}
-
-def uninstalled() {
-    log.debug("Uninstalling Verisure Alarm app, removing all devices")
-    removeChildDevices(getChildDevices())
 }
 
 private removeChildDevices(delete) {
