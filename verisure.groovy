@@ -74,6 +74,11 @@ def initialize() {
     schedule("? 0/1 * * * ?", poll)
 }
 
+def getAlarmState() {
+	log.debug("Retrieving cached alarm state")
+	return state.previousAlarmState
+}
+
 def poll() {
     def baseUrl = "https://mypages.verisure.com"
     def loginUrl = baseUrl + "/j_spring_security_check?locale=en_GB"
@@ -81,13 +86,12 @@ def poll() {
     def sessionCookie = login(loginUrl)
     def alarmState = getAlarmState(baseUrl, sessionCookie)
 
+    if (state.previousAlarmState == null) {
+        state.previousAlarmState = alarmState
+    }
 
     getChildDevices().each { device ->
         device.sendEvent(name: "alarmstate", value: alarmState)
-    }
-
-    if (state.previousAlarmState == null) {
-        state.previousAlarmState = alarmState
     }
 
     if (alarmState != state.previousAlarmState) {
