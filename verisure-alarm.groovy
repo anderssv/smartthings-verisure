@@ -35,7 +35,7 @@ metadata {
 }
 
 def poll() {
-    def alarmstate = parent.poll()
+    def alarmstate = parent.getAlarmState()
     log.debug("Polled state for alarm: " + alarmstate)
     return createEvent(name: "alarmstate", value: alarmstate)
 }
