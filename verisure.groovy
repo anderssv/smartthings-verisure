@@ -87,23 +87,31 @@ def poll() {
     def loginUrl = baseUrl + "/j_spring_security_check?locale=en_GB"
 
     def sessionCookie = login(loginUrl)
-    def alarmState = getAlarmState(baseUrl, sessionCookie)
+	
+    def alarmState = null
 
-    if (state.previousAlarmState == null) {
-        state.previousAlarmState = alarmState
+	try {
+		alarmState = getAlarmState(baseUrl, sessionCookie)
+
+    	if (state.previousAlarmState == null) {
+        	state.previousAlarmState = alarmState
+    	}
+
+		getChildDevices().each { device ->
+        	device.sendEvent(name: "alarmstate", value: alarmState)
+    	}
+    	
+        if (alarmState != state.previousAlarmState) {
+        	log.debug("Verisure Alarm state changed, execution actions")
+        	state.previousAlarmState = alarmState
+        	triggerActions(alarmState)
+    	}
+
+	    log.debug("Verisure Alarm state updated and is: " + alarmState)
+    } catch (Exception e) {
+    	log.error("Error updating alarm state: " + e)
     }
 
-    getChildDevices().each { device ->
-        device.sendEvent(name: "alarmstate", value: alarmState)
-    }
-
-    if (alarmState != state.previousAlarmState) {
-        log.debug("Verisure Alarm state changed, execution actions")
-        state.previousAlarmState = alarmState
-        triggerActions(alarmState)
-    }
-
-    log.debug("Verisure Alarm state updated and is: " + alarmState)
     runIn(pollinterval, poll)
     return alarmState
 }
@@ -157,7 +165,7 @@ def getAlarmState(baseUrl, sessionCookie) {
     ]
 
     return httpGet(alarmParams) { response ->
-        log.debug(response.data)
+        log.debug("Response from Verisure: " + response.data)
         return response.data.findAll { it."type" == "ARM_STATE" }[0]."status"
     }
 }
