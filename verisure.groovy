@@ -109,7 +109,7 @@ def poll() {
 
 	    log.debug("Verisure Alarm state updated and is: " + alarmState)
     } catch (Exception e) {
-    	log.error("Error updating alarm state: " + e)
+    	log.error("Error updating alarm state", e)
     }
 
     runIn(pollinterval, poll)
