@@ -46,6 +46,10 @@ def setupPage() {
             input "armedAction", "enum", title: "Action for armed", options: actions, required: false
             input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
         }
+        
+        section("Alarm polling") {
+            input "pollinterval", "number", title: "Poll interval (seconds, minimum 15)", range: "15..*", defaultValue: 60, required: true
+        }
     }
 }
 
@@ -71,7 +75,6 @@ def uninstalled() {
 def initialize() {
     log.debug("Scheduling Verisure Alarm updates...")
     poll()
-    schedule("? 0/1 * * * ?", poll)
 }
 
 def getAlarmState() {
@@ -101,6 +104,7 @@ def poll() {
     }
 
     log.debug("Verisure Alarm state updated and is: " + alarmState)
+    runIn(pollinterval, poll)
     return alarmState
 }
 
