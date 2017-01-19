@@ -74,6 +74,7 @@ def uninstalled() {
 
 def initialize() {
     log.debug("Scheduling Verisure Alarm updates...")
+    //schedule("? 0/30 * * * ?", schedulePollUpdate)
     poll()
 }
 
@@ -85,12 +86,11 @@ def getAlarmState() {
 def poll() {
     def baseUrl = "https://mypages.verisure.com"
     def loginUrl = baseUrl + "/j_spring_security_check?locale=en_GB"
-
-    def sessionCookie = login(loginUrl)
 	
     def alarmState = null
 
 	try {
+	    def sessionCookie = login(loginUrl)
 		alarmState = getAlarmState(baseUrl, sessionCookie)
 
     	if (state.previousAlarmState == null) {
@@ -112,8 +112,12 @@ def poll() {
     	log.error("Error updating alarm state", e)
     }
 
-    runIn(pollinterval, poll)
+	schedulePollUpdate()
     return alarmState
+}
+
+def schedulePollUpdate() {
+    runIn(pollinterval, poll)
 }
 
 def triggerActions(alarmState) {
