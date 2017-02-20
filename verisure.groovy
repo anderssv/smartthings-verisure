@@ -46,7 +46,7 @@ def setupPage() {
             input "armedAction", "enum", title: "Action for armed", options: actions, required: false
             input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
         }
-        
+
         section("Alarm polling") {
             input "pollinterval", "number", title: "Poll interval (seconds, minimum 15)", range: "15..*", defaultValue: 60, required: true
         }
@@ -79,40 +79,40 @@ def initialize() {
 }
 
 def getAlarmState() {
-	log.debug("Retrieving cached alarm state")
-	return state.previousAlarmState
+    log.debug("Retrieving cached alarm state")
+    return state.previousAlarmState
 }
 
 def poll() {
     def baseUrl = "https://mypages.verisure.com"
     def loginUrl = baseUrl + "/j_spring_security_check?locale=en_GB"
-	
+
     def alarmState = null
 
-	try {
-	    def sessionCookie = login(loginUrl)
-		alarmState = getAlarmState(baseUrl, sessionCookie)
+    try {
+        def sessionCookie = login(loginUrl)
+        alarmState = getAlarmState(baseUrl, sessionCookie)
 
-    	if (state.previousAlarmState == null) {
-        	state.previousAlarmState = alarmState
-    	}
+        if (state.previousAlarmState == null) {
+            state.previousAlarmState = alarmState
+        }
 
-		getChildDevices().each { device ->
-        	device.sendEvent(name: "alarmstate", value: alarmState)
-    	}
-    	
+        getChildDevices().each { device ->
+            device.sendEvent(name: "alarmstate", value: alarmState)
+        }
+
         if (alarmState != state.previousAlarmState) {
-        	log.debug("Verisure Alarm state changed, execution actions")
-        	state.previousAlarmState = alarmState
-        	triggerActions(alarmState)
-    	}
+            log.debug("Verisure Alarm state changed, execution actions")
+            state.previousAlarmState = alarmState
+            triggerActions(alarmState)
+        }
 
-	    log.debug("Verisure Alarm state updated and is: " + alarmState)
+        log.debug("Verisure Alarm state updated and is: " + alarmState)
     } catch (Exception e) {
-    	log.error("Error updating alarm state", e)
+        log.error("Error updating alarm state", e)
     }
 
-	schedulePollUpdate()
+    schedulePollUpdate()
     return alarmState
 }
 
