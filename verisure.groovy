@@ -74,7 +74,6 @@ def uninstalled() {
 
 def initialize() {
     log.debug("Scheduling Verisure Alarm updates...")
-    //schedule("? 0/30 * * * ?", schedulePollUpdate)
     poll()
 }
 
@@ -89,8 +88,8 @@ def poll() {
 
     def alarmState = null
 
+    def sessionCookie = login(loginUrl)
     try {
-        def sessionCookie = login(loginUrl)
         alarmState = getAlarmState(baseUrl, sessionCookie)
 
         if (state.previousAlarmState == null) {
@@ -150,7 +149,7 @@ def login(loginUrl) {
         if (response.status != 200) {
             throw new IllegalStateException("Could not authenticate. Got response code ${response.status} . Is the username and password correct?")
         }
-
+        
         def cookieHeader = response.headers.'Set-Cookie'
         if (cookieHeader == null) {
             throw new RuntimeException("Could not get session cookie! ${response.status} - ${response.data}")
