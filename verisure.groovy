@@ -12,6 +12,9 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  Some notes:
+ *  - TODO: Will fail on installation / update if unable to login
+ *  - Should maybe stop or throttle when error logging in after first installation
  */
 definition(
         name: "Verisure",
@@ -88,8 +91,8 @@ def poll() {
 
     def alarmState = null
 
-    def sessionCookie = login(loginUrl)
     try {
+    	def sessionCookie = login(loginUrl)
         alarmState = getAlarmState(baseUrl, sessionCookie)
 
         if (state.previousAlarmState == null) {
