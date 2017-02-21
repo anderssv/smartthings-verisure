@@ -75,8 +75,8 @@ def uninstalled() {
 }
 
 def initialize() {
-	log.debug("Verifying credentials by doing first fetch of values")
-	updateAlarmState()
+    log.debug("Verifying credentials by doing first fetch of values")
+    updateAlarmState()
     log.debug("Scheduling Verisure Alarm updates...")
     runIn(pollinterval, checkPeriodically)
 }
@@ -87,10 +87,10 @@ def getAlarmState() {
 }
 
 def checkPeriodically() {
-	try {
-		updateAlarmState()    	
+    try {
+        updateAlarmState()
     } catch (Exception e) {
-    	log.error("Error updating alarm state", e)
+        log.error("Error updating alarm state", e)
     }
     runIn(pollinterval, checkPeriodically)
 }
@@ -101,7 +101,7 @@ def updateAlarmState() {
 
     def alarmState = null
 
-   	def sessionCookie = login(loginUrl)
+    def sessionCookie = login(loginUrl)
     alarmState = getAlarmState(baseUrl, sessionCookie)
 
     if (state.previousAlarmState == null) {
@@ -151,7 +151,7 @@ def login(loginUrl) {
         if (response.status != 200) {
             throw new IllegalStateException("Could not authenticate. Got response code ${response.status} . Is the username and password correct?")
         }
-        
+
         def cookieHeader = response.headers.'Set-Cookie'
         if (cookieHeader == null) {
             throw new RuntimeException("Could not get session cookie! ${response.status} - ${response.data}")
