@@ -19,7 +19,7 @@ definition(
         name: "Verisure",
         namespace: "smartthings.f12.no",
         author: "Anders Sveen",
-        description: "Yes",
+        description: "Lets you trigger automations whenever your Verisure alarm changes state.",
         category: "Safety & Security",
         iconUrl: "https://pbs.twimg.com/profile_images/448742746266677248/8RSgcRVz.jpeg",
         iconX2Url: "https://pbs.twimg.com/profile_images/448742746266677248/8RSgcRVz.jpeg",
