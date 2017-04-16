@@ -20,7 +20,6 @@ definition(
         name: "Verisure",
         namespace: "smartthings.f12.no",
         author: "Anders Sveen",
-        version: "0.1",
         description: "Lets you trigger automations whenever your Verisure alarm changes state.",
         category: "Safety & Security",
         iconUrl: "https://pbs.twimg.com/profile_images/448742746266677248/8RSgcRVz.jpeg",
@@ -191,7 +190,9 @@ private removeChildDevices(delete) {
 
 private error(text) {
     log.error(text)
-    httpLog("error", text)
+    if (logUrl) {
+        httpLog("error", text)
+    }
 }
 
 private debug(text) {
@@ -224,6 +225,6 @@ private httpLog(level, text) {
     try {
         httpPostJson(json_params)
     } catch (e) {
-        log.error "http post failed: $e"
+        log.error "Could not log to remote http: $e"
     }
 }
