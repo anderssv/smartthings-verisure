@@ -12,13 +12,15 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Some notes:
- *  - Will not install if wrong username/password. Sometimes you will get errors from the Verisure API as well, but it's not very likely it will hit you on install.
+ *  CHANGE LOG
+ *  - 0.1 - Added option for Splunk logging
+ *
  */
 definition(
         name: "Verisure",
         namespace: "smartthings.f12.no",
         author: "Anders Sveen",
+        version: "0.1",
         description: "Lets you trigger automations whenever your Verisure alarm changes state.",
         category: "Safety & Security",
         iconUrl: "https://pbs.twimg.com/profile_images/448742746266677248/8RSgcRVz.jpeg",
@@ -30,7 +32,6 @@ definition(
 preferences {
     page(name: "setupPage")
 }
-
 
 def setupPage() {
     dynamicPage(name: "setupPage", title: "Configure Verisure", install: true, uninstall: true) {
@@ -52,45 +53,52 @@ def setupPage() {
         section("Alarm polling") {
             input "pollinterval", "number", title: "Poll interval (seconds, minimum 15)", range: "15..*", defaultValue: 60, required: true
         }
+        
+        section("Errors and logging") {
+        	input "logUrl", "text", title: "Splunk URL to log to", required: false
+            input "logToken", "text", title: "Splunk Authorization Token", required: false
+        }
     }
 }
 
 def installed() {
-    log.debug "Verisure Installed"
+    debug("Verisure Installed")
     addChildDevice(app.namespace, "Verisure Alarm", "verisure-alarm", null, [alarmstate: "unknown"])
 
     initialize()
 }
 
 def updated() {
-    log.debug "Verisure Alarm Updated"
+    debug("Verisure Alarm Updated")
 
     unsubscribe()
     initialize()
 }
 
 def uninstalled() {
-    log.debug("Uninstalling Verisure Alarm app, removing all devices")
+    debug("Uninstalling Verisure Alarm app, removing all devices")
     removeChildDevices(getChildDevices())
 }
 
 def initialize() {
-    log.debug("Verifying credentials by doing first fetch of values")
+	state.app_version = "0.1"
+    debug("Verifying credentials by doing first fetch of values")
     updateAlarmState()
-    log.debug("Scheduling Verisure Alarm updates...")
+    debug("Scheduling Verisure Alarm updates...")
     runIn(pollinterval, checkPeriodically)
 }
 
 def getAlarmState() {
-    log.debug("Retrieving cached alarm state")
+    debug("Retrieving cached alarm state")
     return state.previousAlarmState
 }
 
 def checkPeriodically() {
+	debug("Periodic check from timer")
     try {
         updateAlarmState()
     } catch (Exception e) {
-        log.error("Error updating alarm state", e)
+        error("Error updating alarm state", e)
     }
     runIn(pollinterval, checkPeriodically)
 }
@@ -118,7 +126,7 @@ def updateAlarmState() {
         triggerActions(alarmState)
     }
 
-    log.debug("Verisure Alarm state updated and is: " + alarmState)
+    debug("Verisure Alarm state updated and is: " + alarmState)
 }
 
 def triggerActions(alarmState) {
@@ -132,7 +140,7 @@ def triggerActions(alarmState) {
 }
 
 def executeAction(action) {
-    log.debug("Executing action ${action}")
+    debug("Executing action ${action}")
     location.helloHome?.execute(action)
 }
 
@@ -170,7 +178,7 @@ def getAlarmState(baseUrl, sessionCookie) {
     ]
 
     return httpGet(alarmParams) { response ->
-        log.debug("Response from Verisure: " + response.data)
+        debug("Response from Verisure: " + response.data)
         return response.data.findAll { it."type" == "ARM_STATE" }[0]."status"
     }
 }
@@ -179,4 +187,43 @@ private removeChildDevices(delete) {
     delete.each {
         deleteChildDevice(it.deviceNetworkId)
     }
+}
+
+private error(text) {
+	log.error(text)
+    httpLog("error", text)
+}
+
+private debug(text) {
+	log.debug(text)
+    if (logUrl) {
+    	httpLog("debug", text)
+    }
+}
+
+private httpLog(level, text) {
+	def json_body = [
+    		event: [
+            	smartapp_id: app.id,
+            	namespace: app.namespace,
+            	app_name: app.name,
+            	app_version: state.app_version,
+            	level: level,
+            	message: text 
+            ]
+        ]
+
+	def json_params = [
+  		uri: logUrl,
+		headers: [ 
+			'Authorization': "Splunk ${logToken}" 
+		],        
+	  	body: json_body
+	]
+    
+    try {
+		httpPostJson(json_params)
+	} catch (e) {
+    	log.error "http post failed: $e"
+	}
 }
