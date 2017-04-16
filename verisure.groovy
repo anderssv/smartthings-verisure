@@ -53,9 +53,9 @@ def setupPage() {
         section("Alarm polling") {
             input "pollinterval", "number", title: "Poll interval (seconds, minimum 15)", range: "15..*", defaultValue: 60, required: true
         }
-        
+
         section("Errors and logging") {
-        	input "logUrl", "text", title: "Splunk URL to log to", required: false
+            input "logUrl", "text", title: "Splunk URL to log to", required: false
             input "logToken", "text", title: "Splunk Authorization Token", required: false
         }
     }
@@ -81,7 +81,7 @@ def uninstalled() {
 }
 
 def initialize() {
-	state.app_version = "0.1"
+    state.app_version = "0.1"
     debug("Verifying credentials by doing first fetch of values")
     updateAlarmState()
     debug("Scheduling Verisure Alarm updates...")
@@ -94,7 +94,7 @@ def getAlarmState() {
 }
 
 def checkPeriodically() {
-	debug("Periodic check from timer")
+    debug("Periodic check from timer")
     try {
         updateAlarmState()
     } catch (Exception e) {
@@ -190,40 +190,40 @@ private removeChildDevices(delete) {
 }
 
 private error(text) {
-	log.error(text)
+    log.error(text)
     httpLog("error", text)
 }
 
 private debug(text) {
-	log.debug(text)
+    log.debug(text)
     if (logUrl) {
-    	httpLog("debug", text)
+        httpLog("debug", text)
     }
 }
 
 private httpLog(level, text) {
-	def json_body = [
-    		event: [
-            	smartapp_id: app.id,
-            	namespace: app.namespace,
-            	app_name: app.name,
-            	app_version: state.app_version,
-            	level: level,
-            	message: text 
+    def json_body = [
+            event: [
+                    smartapp_id: app.id,
+                    namespace  : app.namespace,
+                    app_name   : app.name,
+                    app_version: state.app_version,
+                    level      : level,
+                    message    : text
             ]
-        ]
+    ]
 
-	def json_params = [
-  		uri: logUrl,
-		headers: [ 
-			'Authorization': "Splunk ${logToken}" 
-		],        
-	  	body: json_body
-	]
-    
+    def json_params = [
+            uri    : logUrl,
+            headers: [
+                    'Authorization': "Splunk ${logToken}"
+            ],
+            body   : json_body
+    ]
+
     try {
-		httpPostJson(json_params)
-	} catch (e) {
-    	log.error "http post failed: $e"
-	}
+        httpPostJson(json_params)
+    } catch (e) {
+        log.error "http post failed: $e"
+    }
 }
