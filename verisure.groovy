@@ -217,7 +217,7 @@ private httpLog(level, text, e) {
 
     def json_body = [
             time : time.getTime(),
-            host: location.id + ".smartthings.com",
+            host : location.id + ".smartthings.com",
             event: [
                     time       : time.format("E MMM dd HH:mm:ss.SSS z yyyy"),
                     smartapp_id: app.id,
