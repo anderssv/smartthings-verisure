@@ -81,10 +81,14 @@ def uninstalled() {
 
 def initialize() {
     state.app_version = "0.1"
-    debug("Verifying credentials by doing first fetch of values")
-    updateAlarmState()
-    debug("Scheduling Verisure Alarm updates...")
-    runIn(pollinterval, checkPeriodically)
+    try {
+        debug("Verifying credentials by doing first fetch of values")
+        updateAlarmState()
+        debug("Scheduling Verisure Alarm updates...")
+        runIn(pollinterval, checkPeriodically)
+    } catch (e) {
+    	error("Could not initialize Verisure app", e)
+    }
 }
 
 def getAlarmState() {
@@ -188,29 +192,39 @@ private removeChildDevices(delete) {
     }
 }
 
-private error(text) {
-    log.error(text)
+private error(text, e) {
+    log.error(text, e)
     if (logUrl) {
-        httpLog("error", text)
+        httpLog("error", text, e)
     }
 }
 
 private debug(text) {
     log.debug(text)
     if (logUrl) {
-        httpLog("debug", text)
+        httpLog("debug", text, null)
     }
 }
 
-private httpLog(level, text) {
+private httpLog(level, text, e) {
+	def message = text
+    if (e) {
+    	message = message + "\n" + e
+    }
+
+	def time = new Date()
+
     def json_body = [
+    		time: time.getTime(),
             event: [
+            		time: time.format("E MMM dd HH:mm:ss.SSS z yyyy"),
                     smartapp_id: app.id,
+                    location_id: location.id,
                     namespace  : app.namespace,
                     app_name   : app.name,
                     app_version: state.app_version,
                     level      : level,
-                    message    : text
+                    message    : message
             ]
     ]
 
@@ -224,7 +238,7 @@ private httpLog(level, text) {
 
     try {
         httpPostJson(json_params)
-    } catch (e) {
-        log.error "Could not log to remote http: $e"
+    } catch (logError) {
+        log.error("Could not log to remote http", logError)
     }
 }
