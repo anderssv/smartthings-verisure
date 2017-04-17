@@ -217,6 +217,7 @@ private httpLog(level, text, e) {
 
     def json_body = [
             time : time.getTime(),
+            host: location.id + ".smartthings.com",
             event: [
                     time       : time.format("E MMM dd HH:mm:ss.SSS z yyyy"),
                     smartapp_id: app.id,
@@ -240,6 +241,6 @@ private httpLog(level, text, e) {
     try {
         httpPostJson(json_params)
     } catch (logError) {
-        log.error("Could not log to remote http", logError)
+        log.warn("Could not log to remote http", logError)
     }
 }
