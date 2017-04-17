@@ -71,6 +71,7 @@ def updated() {
     debug("Verisure Alarm Updated")
 
     unsubscribe()
+    unschedule()
     initialize()
 }
 
@@ -87,7 +88,7 @@ def initialize() {
         debug("Scheduling Verisure Alarm updates...")
         runIn(pollinterval, checkPeriodically)
     } catch (e) {
-        error("Could not initialize Verisure app", e)
+    	error("Could not initialize Verisure app", e)
     }
 }
 
@@ -207,17 +208,17 @@ private debug(text) {
 }
 
 private httpLog(level, text, e) {
-    def message = text
+	def message = text
     if (e) {
-        message = message + "\n" + e
+    	message = message + "\n" + e
     }
 
-    def time = new Date()
+	def time = new Date()
 
     def json_body = [
-            time : time.getTime(),
+    		time: time.getTime(),
             event: [
-                    time       : time.format("E MMM dd HH:mm:ss.SSS z yyyy"),
+            		time: time.format("E MMM dd HH:mm:ss.SSS z yyyy"),
                     smartapp_id: app.id,
                     location_id: location.id,
                     namespace  : app.namespace,
