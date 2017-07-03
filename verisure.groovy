@@ -16,6 +16,9 @@
  *  - 0.1   - Added option for Splunk logging
  *  - 0.1.1 - Removed option to set update frequency. Need to use cron to have realiable updates, and it won't poll faster than each minute.
  *
+ *
+ * Version: 0.1.1
+ *
  */
 definition(
         name: "Verisure",
