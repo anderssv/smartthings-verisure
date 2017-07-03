@@ -83,7 +83,7 @@ def initialize() {
         debug("Verifying credentials by doing first fetch of values")
         updateAlarmState()
         debug("Scheduling Verisure Alarm updates...")
-		schedule("0 0/1 * * * ?", checkPeriodically)
+        schedule("0 0/1 * * * ?", checkPeriodically)
     } catch (e) {
         error("Could not initialize Verisure app", e)
     }
