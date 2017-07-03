@@ -13,7 +13,8 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  *  CHANGE LOG
- *  - 0.1 - Added option for Splunk logging
+ *  - 0.1   - Added option for Splunk logging
+ *  - 0.1.1 - Removed option to set update frequency. Need to use cron to have realiable updates, and it won't poll faster than each minute.
  *
  */
 definition(
@@ -49,10 +50,6 @@ def setupPage() {
             input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
         }
 
-        section("Alarm polling") {
-            input "pollinterval", "number", title: "Poll interval (seconds, minimum 15)", range: "15..*", defaultValue: 60, required: true
-        }
-
         section("Errors and logging") {
             input "logUrl", "text", title: "Splunk URL to log to", required: false
             input "logToken", "text", title: "Splunk Authorization Token", required: false
@@ -81,12 +78,12 @@ def uninstalled() {
 }
 
 def initialize() {
-    state.app_version = "0.1"
+    state.app_version = "0.1.1"
     try {
         debug("Verifying credentials by doing first fetch of values")
         updateAlarmState()
         debug("Scheduling Verisure Alarm updates...")
-        runIn(pollinterval, checkPeriodically)
+		schedule("0 0/1 * * * ?", checkPeriodically)
     } catch (e) {
         error("Could not initialize Verisure app", e)
     }
@@ -104,7 +101,6 @@ def checkPeriodically() {
     } catch (Exception e) {
         error("Error updating alarm state", e)
     }
-    runIn(pollinterval, checkPeriodically)
 }
 
 def updateAlarmState() {
