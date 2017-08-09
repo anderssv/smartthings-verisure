@@ -1,7 +1,7 @@
 /**
  *  Verisure
  *
- *  Copyright 2017 Anders Sveen
+ *  Copyright 2017 Anders Sveen & Martin Carlsson
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -15,16 +15,16 @@
  *  CHANGE LOG
  *  - 0.1   - Added option for Splunk logging
  *  - 0.1.1 - Removed option to set update frequency. Need to use cron to have realiable updates, and it won't poll faster than each minute.
+ *  - 0.2   - Added support to grab climate data.
  *
- *
- * Version: 0.1.1
+ * Version: 0.2
  *
  */
 definition(
         name: "Verisure",
         namespace: "smartthings.f12.no",
         author: "Anders Sveen",
-        description: "Lets you trigger automations whenever your Verisure alarm changes state.",
+        description: "Lets you trigger automations whenever your Verisure alarm changes state or temperature changes.",
         category: "Safety & Security",
         iconUrl: "https://pbs.twimg.com/profile_images/448742746266677248/8RSgcRVz.jpeg",
         iconX2Url: "https://pbs.twimg.com/profile_images/448742746266677248/8RSgcRVz.jpeg",
@@ -61,48 +61,45 @@ def setupPage() {
 }
 
 def installed() {
-    debug("Verisure Installed")
-    addChildDevice(app.namespace, "Verisure Alarm", "verisure-alarm", null, [alarmstate: "unknown"])
-
+    debug("[verisure.installed]")
     initialize()
 }
 
 def updated() {
-    debug("Verisure Alarm Updated")
-
+    debug("[verisure.updated]")
     unsubscribe()
     unschedule()
     initialize()
 }
 
 def uninstalled() {
-    debug("Uninstalling Verisure Alarm app, removing all devices")
+    debug("[verisure.uninstalling]")
     removeChildDevices(getChildDevices())
 }
 
 def initialize() {
-    state.app_version = "0.1.1"
+    state.app_version = "0.2"
     try {
-        debug("Verifying credentials by doing first fetch of values")
+        debug("[verisure.initialize] Verifying Credentials")
         updateAlarmState()
-        debug("Scheduling Verisure Alarm updates...")
+        debug("[verisure.scheduling]")
         schedule("0 0/1 * * * ?", checkPeriodically)
     } catch (e) {
-        error("Could not initialize Verisure app", e)
+        error("[verisure.initialize] Could not initialize app", e)
     }
 }
 
 def getAlarmState() {
-    debug("Retrieving cached alarm state")
+    debug("[verisure.alarmState] Retrieving cached alarm state")
     return state.previousAlarmState
 }
 
 def checkPeriodically() {
-    debug("Periodic check from timer")
+    debug("[verisure.checkPeriodically] Periodic check from timer")
     try {
         updateAlarmState()
     } catch (Exception e) {
-        error("Error updating alarm state", e)
+        error("[verisure.checkPeriodically] Error updating alarm state", e)
     }
 }
 
@@ -111,25 +108,57 @@ def updateAlarmState() {
     def loginUrl = baseUrl + "/j_spring_security_check?locale=en_GB"
 
     def alarmState = null
+    def climateState = null
+
+    def childDevices = getChildDevices()
 
     def sessionCookie = login(loginUrl)
     alarmState = getAlarmState(baseUrl, sessionCookie)
+    climateState = getClimateState(baseUrl, sessionCookie)
 
-    if (state.previousAlarmState == null) {
+    debug("[childDevices.found] " + childDevices)
+    if (state.previousAlarmState == null) { state.previousAlarmState = alarmState }
+
+    //Add or Update Sensors
+    climateState.each {climateDevice ->
+        def existingDevice = getChildDevice(climateDevice.id)
+        if(!existingDevice) {
+            addChildDevice(app.namespace, "Verisure Sensor", climateDevice.id, null, [label: climateDevice.location, timestamp: climateDevice.timestamp, humidity: climateDevice.humidity, type: climateDevice.type, temperature: climateDevice.temperature])
+            debug("[climateDevice.created] " + climateDevice)
+        } else {           
+            if (climateDevice.humidity != "") {
+                debug("[climateDevice.updated] " + climateDevice.location + " | Humidity: " + climateDevice.humidity.substring(0,4) + " | Temperature: " + climateDevice.temperature.substring(0,4))
+                existingDevice.sendEvent(name: "humidity", value: climateDevice.humidity.substring(0,4))
+            } else {
+                debug("[climateDevice.updated] " + climateDevice.location + " | Humidity: " + "0" + " | Temperature: " + climateDevice.temperature.substring(0,4))
+                existingDevice.sendEvent(name: "humidity", value: "0")
+            }
+
+            existingDevice.sendEvent(name: "timestamp", value: climateDevice.timestamp)
+            existingDevice.sendEvent(name: "type", value: climateDevice.type)
+            existingDevice.sendEvent(name: "temperature", value: climateDevice.temperature.substring(0,4))
+        }
+    }
+
+    //Add & update main alarm
+
+    def alarmDevice = getChildDevice('verisure-alarm')
+
+    if(!alarmDevice) {
+        debug("[alarmDevice.created] " + alarmDevice)
+        addChildDevice(app.namespace, "Verisure Alarm", "verisure-alarm", null, [status: alarmState.status, loggedBy: alarmState.name, loggedWhen: alarmState.date])  
+    } else {
+        debug("[alarmDevice.updated] " + alarmDevice + " | Status: " + alarmState.status + " | LoggedBy: " + alarmState.name + " | LoggedWhen: " + alarmState.date)
+        alarmDevice.sendEvent(name: "status", value: alarmState.status)
+        alarmDevice.sendEvent(name: "loggedBy", value: alarmState.name)
+        alarmDevice.sendEvent(name: "loggedWhen", value: alarmState.date)
+    }
+
+    if (alarmState.status != state.previousAlarmState.status) {
+        debug("[verisure.updateAlarmState] State changed, execution actions")
         state.previousAlarmState = alarmState
+        triggerActions(alarmState.status)
     }
-
-    getChildDevices().each { device ->
-        device.sendEvent(name: "alarmstate", value: alarmState)
-    }
-
-    if (alarmState != state.previousAlarmState) {
-        log.debug("Verisure Alarm state changed, execution actions")
-        state.previousAlarmState = alarmState
-        triggerActions(alarmState)
-    }
-
-    debug("Verisure Alarm state updated and is: " + alarmState)
 }
 
 def triggerActions(alarmState) {
@@ -143,7 +172,7 @@ def triggerActions(alarmState) {
 }
 
 def executeAction(action) {
-    debug("Executing action ${action}")
+    debug("[verisure.executeAction] Executing action ${action}")
     location.helloHome?.execute(action)
 }
 
@@ -181,8 +210,22 @@ def getAlarmState(baseUrl, sessionCookie) {
     ]
 
     return httpGet(alarmParams) { response ->
-        debug("Response from Verisure: " + response.data)
-        return response.data.findAll { it."type" == "ARM_STATE" }[0]."status"
+        //debug("[Alarm] Response from Verisure: " + response.data)
+        return response.data.findAll { it."type" == "ARM_STATE" }[0]
+    }
+}
+
+def getClimateState(baseUrl, sessionCookie) {
+    def alarmParams = [
+            uri    : baseUrl + "/overview/climatedevice",
+            headers: [
+                    Cookie: sessionCookie
+            ]
+    ]
+
+    return httpGet(alarmParams) { response ->
+        //debug("[Climate] Response from Verisure: " + response.data)
+        return response.data
     }
 }
 
