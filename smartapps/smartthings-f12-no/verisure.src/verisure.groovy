@@ -118,15 +118,17 @@ def updateAlarmState() {
     climateState = getClimateState(baseUrl, sessionCookie)
 
     debug("[childDevices.found] " + childDevices)
-    if (state.previousAlarmState == null) { state.previousAlarmState = alarmState }
+    if (state.previousAlarmState == null) {
+        state.previousAlarmState = alarmState
+    }
 
     //Add or Update Sensors
-    climateState.each {climateDevice ->
+    climateState.each { climateDevice ->
         def existingDevice = getChildDevice(climateDevice.id)
         def tempNumber = Double.parseDouble(climateDevice.temperature.replace("&#176;", "").replace(",", "."))
         def humidityNumber = climateDevice.humidity != "" ? Double.parseDouble(climateDevice.humidity.replace("%", "").replace(",", ".")) : "0"
-        
-        if(!existingDevice) {
+
+        if (!existingDevice) {
             addChildDevice(app.namespace, "Verisure Sensor", climateDevice.id, null, [label: climateDevice.location, timestamp: climateDevice.timestamp, humidity: humidityNumber, type: climateDevice.type, temperature: tempNumber])
             debug("[climateDevice.created] " + climateDevice)
         } else {
@@ -142,9 +144,9 @@ def updateAlarmState() {
 
     def alarmDevice = getChildDevice('verisure-alarm')
 
-    if(!alarmDevice) {
+    if (!alarmDevice) {
         debug("[alarmDevice.created] " + alarmDevice)
-        addChildDevice(app.namespace, "Verisure Alarm", "verisure-alarm", null, [status: alarmState.status, loggedBy: alarmState.name, loggedWhen: alarmState.date])  
+        addChildDevice(app.namespace, "Verisure Alarm", "verisure-alarm", null, [status: alarmState.status, loggedBy: alarmState.name, loggedWhen: alarmState.date])
     } else {
         debug("[alarmDevice.updated] " + alarmDevice + " | Status: " + alarmState.status + " | LoggedBy: " + alarmState.name + " | LoggedWhen: " + alarmState.date)
         alarmDevice.sendEvent(name: "status", value: alarmState.status)

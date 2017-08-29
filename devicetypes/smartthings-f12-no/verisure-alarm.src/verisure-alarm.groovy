@@ -23,11 +23,11 @@ metadata {
             name: "Verisure Alarm",
             author: "Martin Carlsson",
             namespace: "smartthings.f12.no") {
-                capability "Sensor"
-                attribute "status", "string"
-                attribute "loggedBy", "string"
-                attribute "loggedWhen", "string"
-            }
+        capability "Sensor"
+        attribute "status", "string"
+        attribute "loggedBy", "string"
+        attribute "loggedWhen", "string"
+    }
 
     simulator {}
 
@@ -38,10 +38,10 @@ metadata {
             state "armedhome", label: 'Armed Home', backgroundColor: "#79b821", icon: "st.Home.home2"
         }
         valueTile("nameTile", "device.loggedBy", decoration: "flat", height: 2, width: 6, inactiveLabel: false) {
-            state "loggedBy", label:'By: ${currentValue}'
+            state "loggedBy", label: 'By: ${currentValue}'
         }
         valueTile("dateTile", "device.loggedWhen", decoration: "flat", height: 2, width: 6, inactiveLabel: false) {
-            state "loggedWhen", label:'Time: ${currentValue}'
+            state "loggedWhen", label: 'Time: ${currentValue}'
         }
         main("alarmTile")
         details(["alarmTile", "nameTile", "dateTile"])
