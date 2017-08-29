@@ -16,14 +16,15 @@
  *  - 0.1   - Added option for Splunk logging
  *  - 0.1.1 - Removed option to set update frequency. Need to use cron to have realiable updates, and it won't poll faster than each minute.
  *  - 0.2   - Added support to grab climate data.
+ *  - 0.2.1 - Fixed issue with parsing numbers for climate data.
  *
- * Version: 0.2
+ * Version: 0.2.1
  *
  */
 definition(
         name: "Verisure",
         namespace: "smartthings.f12.no",
-        author: "Anders Sveen",
+        author: "Anders Sveen & Martin Carlsson",
         description: "Lets you trigger automations whenever your Verisure alarm changes state or temperature changes.",
         category: "Safety & Security",
         iconUrl: "https://pbs.twimg.com/profile_images/448742746266677248/8RSgcRVz.jpeg",
@@ -78,7 +79,7 @@ def uninstalled() {
 }
 
 def initialize() {
-    state.app_version = "0.2"
+    state.app_version = "0.2.1"
     try {
         debug("[verisure.initialize] Verifying Credentials")
         updateAlarmState()
@@ -122,21 +123,18 @@ def updateAlarmState() {
     //Add or Update Sensors
     climateState.each {climateDevice ->
         def existingDevice = getChildDevice(climateDevice.id)
+        def tempNumber = Double.parseDouble(climateDevice.temperature.replace("&#176;", "").replace(",", "."))
+        def humidityNumber = climateDevice.humidity != "" ? Double.parseDouble(climateDevice.humidity.replace("%", "").replace(",", ".")) : "0"
+        
         if(!existingDevice) {
-            addChildDevice(app.namespace, "Verisure Sensor", climateDevice.id, null, [label: climateDevice.location, timestamp: climateDevice.timestamp, humidity: climateDevice.humidity, type: climateDevice.type, temperature: climateDevice.temperature])
+            addChildDevice(app.namespace, "Verisure Sensor", climateDevice.id, null, [label: climateDevice.location, timestamp: climateDevice.timestamp, humidity: humidityNumber, type: climateDevice.type, temperature: tempNumber])
             debug("[climateDevice.created] " + climateDevice)
-        } else {           
-            if (climateDevice.humidity != "") {
-                debug("[climateDevice.updated] " + climateDevice.location + " | Humidity: " + climateDevice.humidity.substring(0,4) + " | Temperature: " + climateDevice.temperature.substring(0,4))
-                existingDevice.sendEvent(name: "humidity", value: climateDevice.humidity.substring(0,4))
-            } else {
-                debug("[climateDevice.updated] " + climateDevice.location + " | Humidity: " + "0" + " | Temperature: " + climateDevice.temperature.substring(0,4))
-                existingDevice.sendEvent(name: "humidity", value: "0")
-            }
-
+        } else {
+            debug("[climateDevice.updated] " + climateDevice.location + " | Humidity: " + humidityNumber + " | Temperature: " + tempNumber)
+            existingDevice.sendEvent(name: "humidity", value: humidityNumber)
             existingDevice.sendEvent(name: "timestamp", value: climateDevice.timestamp)
             existingDevice.sendEvent(name: "type", value: climateDevice.type)
-            existingDevice.sendEvent(name: "temperature", value: climateDevice.temperature.substring(0,4))
+            existingDevice.sendEvent(name: "temperature", value: tempNumber)
         }
     }
 
