@@ -14,8 +14,9 @@
  *
  *  CHANGE LOG
  *  - 0.1   - Initial release
+ *  - 0.1.1 - Corrected capabilities to improve interoperability with other apps
  *
- * Version: 0.1
+ * Version: 0.1.1
  *
  */
 metadata {
@@ -23,7 +24,9 @@ metadata {
             name: "Verisure Sensor",
             author: "Martin Carlsson",
             namespace: "smartthings.f12.no") {
-        capability "Sensor"
+		capability "Temperature Measurement"
+		capability "Relative Humidity Measurement"
+		capability "Sensor"
         attribute "timestamp", "string"
         attribute "humidity", "string"
         attribute "type", "string"
