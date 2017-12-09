@@ -28,9 +28,9 @@ metadata {
 		capability "Relative Humidity Measurement"
 		capability "Sensor"
         attribute "timestamp", "string"
-        attribute "humidity", "string"
         attribute "type", "string"
-        attribute "temperature", "string"
+        attribute "humidity", "number"
+        attribute "temperature", "number"
     }
 
     simulator {}
