@@ -63,45 +63,53 @@ def setupPage() {
 }
 
 def installed() {
-    debug("[verisure.installed]")
     initialize()
 }
 
 def updated() {
-    debug("[verisure.updated]")
+    debug("updated", "Settings updated")
     unsubscribe()
     unschedule()
     initialize()
 }
 
 def uninstalled() {
-    debug("[verisure.uninstalling]")
+    debug("uninstalled", "Uninstalling Verisure and removing child devices")
     removeChildDevices(getChildDevices())
 }
 
 def initialize() {
     state.app_version = "0.2.2"
     try {
-        debug("[verisure.initialize] Verifying Credentials")
+        debug("initialize", "Verifying Credentials")
         updateAlarmState()
-        debug("[verisure.scheduling]")
+        debug("initialize", "Scheduling polling")
         schedule("0 0/1 * * * ?", checkPeriodically)
     } catch (e) {
-        error("[verisure.initialize] Could not initialize app", e)
+        error("initialize", "Could not initialize app", e)
     }
 }
 
 def getAlarmState() {
-    debug("[verisure.alarmState] Retrieving cached alarm state")
+    debug("getAlarmState", "Retrieving cached alarm state")
     return state.previousAlarmState
 }
 
 def checkPeriodically() {
-    debug("[verisure.checkPeriodically] Periodic check from timer")
+    debug("checkPeriodically", "Periodic check from timer")
     try {
         updateAlarmState()
     } catch (Exception e) {
-        error("[verisure.checkPeriodically] Error updating alarm state", e)
+        error("checkPeriodically", "Error updating alarm state", e)
+    }
+}
+
+def tryCatch(Closure closure, String context) {
+    try {
+        return closure()
+    } catch (Exception e) {
+        error(context, "Caught error when trying to '" + context + "'. Rethrowing.", e)
+        throw e
     }
 }
 
@@ -109,9 +117,9 @@ def updateAlarmState() {
     def baseUrl = "https://mypages.verisure.com"
     def loginUrl = baseUrl + "/j_spring_security_check?locale=en_GB"
 
-    def sessionCookie = login(loginUrl)
-    def alarmState = getAlarmState(baseUrl, sessionCookie)
-    def climateState = getClimateState(baseUrl, sessionCookie)
+    def sessionCookie = tryCatch({ login(loginUrl) }, "Logging in")
+    def alarmState = tryCatch({ getAlarmState(baseUrl, sessionCookie) }, "Getting alarm state")
+    def climateState = tryCatch({ getClimateState(baseUrl, sessionCookie) }, "Getting climate state")
 
     if (state.previousAlarmState == null) {
         state.previousAlarmState = alarmState
@@ -124,11 +132,11 @@ def updateAlarmState() {
 
         if (!hasChildDevice(updatedJsonDevice.id)) {
             addChildDevice(app.namespace, "Verisure Sensor", updatedJsonDevice.id, null, [label: updatedJsonDevice.location, timestamp: updatedJsonDevice.timestamp, humidity: humidityNumber, type: updatedJsonDevice.type, temperature: tempNumber])
-            debug("[climateDevice.created] " + updatedJsonDevice)
+            debug("climateDevice.created", updatedJsonDevice.toString())
         } else {
             def existingDevice = getChildDevice(updatedJsonDevice.id)
 
-            debug("[climateDevice.updated] " + updatedJsonDevice.location + " | Humidity: " + humidityNumber + " | Temperature: " + tempNumber)
+            debug("climateDevice.updated", updatedJsonDevice.location + " | Humidity: " + humidityNumber + " | Temperature: " + tempNumber)
             existingDevice.sendEvent(name: "humidity", value: humidityNumber)
             existingDevice.sendEvent(name: "timestamp", value: updatedJsonDevice.timestamp)
             existingDevice.sendEvent(name: "type", value: updatedJsonDevice.type)
@@ -138,19 +146,19 @@ def updateAlarmState() {
 
     //Add & update main alarm
     if (!hasChildDevice('verisure-alarm')) {
-        debug("[alarmDevice.created] " + alarmDevice)
+        debug("alarmDevice.created", alarmDevice)
         addChildDevice(app.namespace, "Verisure Alarm", "verisure-alarm", null, [status: alarmState.status, loggedBy: alarmState.name, loggedWhen: alarmState.date])
     } else {
         def alarmDevice = getChildDevice('verisure-alarm')
 
-        debug("[alarmDevice.updated] " + alarmDevice + " | Status: " + alarmState.status + " | LoggedBy: " + alarmState.name + " | LoggedWhen: " + alarmState.date)
+        debug("alarmDevice.updated", alarmDevice.getDisplayName() + " | Status: " + alarmState.status + " | LoggedBy: " + alarmState.name + " | LoggedWhen: " + alarmState.date)
         alarmDevice.sendEvent(name: "status", value: alarmState.status)
         alarmDevice.sendEvent(name: "loggedBy", value: alarmState.name)
         alarmDevice.sendEvent(name: "loggedWhen", value: alarmState.date)
     }
 
     if (alarmState.status != state.previousAlarmState.status) {
-        debug("[verisure.updateAlarmState] State changed, execution actions")
+        debug("updateAlarmState", "State changed, execution actions")
         state.previousAlarmState = alarmState
         triggerActions(alarmState.status)
     }
@@ -167,7 +175,7 @@ def triggerActions(alarmState) {
 }
 
 def executeAction(action) {
-    debug("[verisure.executeAction] Executing action ${action}")
+    debug("executeAction", "Executing action ${action}")
     location.helloHome?.execute(action)
 }
 
@@ -205,7 +213,7 @@ def getAlarmState(baseUrl, sessionCookie) {
     ]
 
     return httpGet(alarmParams) { response ->
-        //debug("[Alarm] Response from Verisure: " + response.data)
+        //debug("Alarm", "Response from Verisure: " + response.data)
         return response.data.findAll { it."type" == "ARM_STATE" }[0]
     }
 }
@@ -219,7 +227,7 @@ def getClimateState(baseUrl, sessionCookie) {
     ]
 
     return httpGet(alarmParams) { response ->
-        //debug("[Climate] Response from Verisure: " + response.data)
+        //debug("Climate", "Response from Verisure: " + response.data)
         return response.data
     }
 }
@@ -234,15 +242,24 @@ private removeChildDevices(delete) {
     }
 }
 
-private error(text, e) {
-    log.error(text, e)
+/**
+ * The following methods has been added to ease remote debugging as well as enforce a certain way of logging.
+ *
+ */
+
+private createLogString(String context, String message) {
+    return "[verisure." + context + "] " + message
+}
+
+private error(String context, String text, Exception e) {
+    log.error(createLogString(context, text), e)
     if (logUrl) {
         httpLog("error", text, e)
     }
 }
 
-private debug(text) {
-    log.debug(text)
+private debug(String context, String text) {
+    log.debug(createLogString(context, text))
     if (logUrl) {
         httpLog("debug", text, null)
     }
