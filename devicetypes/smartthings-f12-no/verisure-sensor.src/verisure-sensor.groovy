@@ -24,9 +24,9 @@ metadata {
             name: "Verisure Sensor",
             author: "Martin Carlsson",
             namespace: "smartthings.f12.no") {
-		capability "Temperature Measurement"
-		capability "Relative Humidity Measurement"
-		capability "Sensor"
+        capability "Temperature Measurement"
+        capability "Relative Humidity Measurement"
+        capability "Sensor"
         attribute "timestamp", "string"
         attribute "type", "string"
         attribute "humidity", "number"
