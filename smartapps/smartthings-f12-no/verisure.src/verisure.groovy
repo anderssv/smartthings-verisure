@@ -18,8 +18,9 @@
  *  - 0.2   - Added support to grab climate data.
  *  - 0.2.1 - Fixed issue with parsing numbers for climate data.
  *  - 0.2.2 - Cleaned up some code
+ *  - 0.2.3 - Added enable/disable option
  *
- * Version: 0.2.1
+ * Version: 0.2.3
  *
  */
 definition(
@@ -40,7 +41,11 @@ preferences {
 
 def setupPage() {
     dynamicPage(name: "setupPage", title: "Configure Verisure", install: true, uninstall: true) {
-
+		
+        section("Disable updating here") {
+			input "enabled", "bool", defaultValue: "true", title: "Enabled?"
+		}
+        
         section("Authentication") {
             input "username", "text", title: "Username"
             input "password", "password", title: "Password"
@@ -79,7 +84,7 @@ def uninstalled() {
 }
 
 def initialize() {
-    state.app_version = "0.2.2"
+    state.app_version = "0.2.3"
     try {
         debug("initialize", "Verifying Credentials")
         updateAlarmState()
@@ -97,6 +102,10 @@ def getAlarmState() {
 
 def checkPeriodically() {
     debug("checkPeriodically", "Periodic check from timer")
+    if (enabled != null && !enabled) {
+    	debug("checkPeriodically", "Not updating status as alarm is disabled in settings.")
+        return
+    }
     try {
         updateAlarmState()
     } catch (Exception e) {
