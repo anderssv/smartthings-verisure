@@ -41,11 +41,11 @@ preferences {
 
 def setupPage() {
     dynamicPage(name: "setupPage", title: "Configure Verisure", install: true, uninstall: true) {
-		
+
         section("Disable updating here") {
-			input "enabled", "bool", defaultValue: "true", title: "Enabled?"
-		}
-        
+            input "enabled", "bool", defaultValue: "true", title: "Enabled?"
+        }
+
         section("Authentication") {
             input "username", "text", title: "Username"
             input "password", "password", title: "Password"
@@ -103,7 +103,7 @@ def getAlarmState() {
 def checkPeriodically() {
     debug("checkPeriodically", "Periodic check from timer")
     if (enabled != null && !enabled) {
-    	debug("checkPeriodically", "Not updating status as alarm is disabled in settings.")
+        debug("checkPeriodically", "Not updating status as alarm is disabled in settings.")
         return
     }
     try {
