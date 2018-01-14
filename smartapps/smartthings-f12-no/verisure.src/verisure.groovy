@@ -1,5 +1,5 @@
 /**
- *  Verisure
+ *  Verisure integration for Smartthings platform
  *
  *  Copyright 2017 Anders Sveen & Martin Carlsson
  *
@@ -12,6 +12,11 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ * --------------------------------------------------------------------------------------------------------------------
+ *
+ *  Huge props to Per Sandström who's made the python library for Verisure integration which this is based heavily on.
+ *  This would not be possible without it. See: https://github.com/persandstrom/python-verisure
+ *
  *  CHANGE LOG
  *  - 0.1   - Added option for Splunk logging
  *  - 0.1.1 - Removed option to set update frequency. Need to use cron to have realiable updates, and it won't poll faster than each minute.
@@ -19,8 +24,23 @@
  *  - 0.2.1 - Fixed issue with parsing numbers for climate data.
  *  - 0.2.2 - Cleaned up some code
  *  - 0.2.3 - Added enable/disable option
+ *  - 0.5   - Changed to using API servers and async http requests. Great improvements for stability.
+ *  - 0.5.1 - Added throttle detection and postponing of updates
  *
- * Version: 0.2.3
+ * NOTES (please read these):
+ *
+ * - WARNING: Your credentials are no longer checked on first login. WATCH THE LOGS AFTER INSTALLATION for errors.
+ *
+ * - Some errors still occur. There are intermittent:
+ *      - groovyx.net.http.HttpResponseException: Unauthorized
+ *      - "Request limit has been reached" - In this event the app will wait a couple of minutes before trying again.
+ *
+ * - If you have several locations in Verisure this app will currently not work. Sorry, let me know if you need it. :)
+ *
+ * - For some reason not all log entries show up in my console. It does get logged because I get them on the remote Splunk server.
+ *
+ *
+ * Version: 0.5.1
  *
  */
 definition(
@@ -38,6 +58,8 @@ definition(
 preferences {
     page(name: "setupPage")
 }
+
+include 'asynchttp_v1'
 
 def setupPage() {
     dynamicPage(name: "setupPage", title: "Configure Verisure", install: true, uninstall: true) {
@@ -67,6 +89,8 @@ def setupPage() {
     }
 }
 
+// --- Smartthings lifecycle
+
 def installed() {
     initialize()
 }
@@ -84,15 +108,22 @@ def uninstalled() {
 }
 
 def initialize() {
-    state.app_version = "0.2.3"
     try {
-        debug("initialize", "Verifying Credentials")
-        updateAlarmState()
         debug("initialize", "Scheduling polling")
-        schedule("0 0/1 * * * ?", checkPeriodically)
+        schedule("* 0/1 * * * ?", checkPeriodically)
     } catch (e) {
-        error("initialize", "Could not initialize app", e)
+        error("initialize", "Could not initialize app. Not scheduling updates.", e)
     }
+}
+
+// --- Getters
+
+def getBaseUrl() {
+    return "https://e-api01.verisure.com/xbn/2"
+}
+
+private hasChildDevice(id) {
+    return getChildDevice(id) != null
 }
 
 def getAlarmState() {
@@ -100,149 +131,191 @@ def getAlarmState() {
     return state.previousAlarmState
 }
 
+// -- Application logic
+
 def checkPeriodically() {
+    debug("transaction", " ===== START_UPDATE")
+
+    // Handling some parameter setup
+    state.app_version = "0.5.1"
+    state.logUrl = logUrl
+    state.logToken = logToken
+
     debug("checkPeriodically", "Periodic check from timer")
     if (enabled != null && !enabled) {
         debug("checkPeriodically", "Not updating status as alarm is disabled in settings.")
         return
+    } else if (state.throttleCounter && state.throttleCounter > 0) {
+        debug("checkPeriodically", "Got throttling errors, postponing poll another " + state.throttleCounter + " minutes.")
+        state.throttleCounter = state.throttleCounter - 1
+        return
     }
     try {
-        updateAlarmState()
+        loginAndUpdateStates()
     } catch (Exception e) {
         error("checkPeriodically", "Error updating alarm state", e)
     }
 }
 
-def tryCatch(Closure closure, String context) {
-    try {
-        return closure()
-    } catch (Exception e) {
-        error(context, "Caught error when trying to '" + context + "'. Rethrowing.", e)
-        throw e
+def loginAndUpdateStates() {
+    debug("loginAndUpdateStates", "Doing login")
+
+    def loginUrl = getBaseUrl() + "/cookie"
+
+    def authString = "Basic " + ("CPE/" + username + ":" + password).bytes.encodeBase64()
+
+    def params = [
+            uri        : loginUrl,
+            headers    : [
+                    Authorization: authString
+            ],
+            contentType: "application/json"
+    ]
+
+    asynchttp_v1.post('handleLoginResponse', params)
+}
+
+
+def fetchStatusFromServer(sessionCookie, installationId) {
+    debug("fetchStatusFromServer", "Fetching overview")
+
+    fetchResourceFromServer("overview", sessionCookie, installationId, "handleOverviewResponse")
+}
+
+def fetchInstallationId(sessionCookie) {
+    debug("fetchInstallationId", "Finding installation")
+    def params = [
+            uri        : getBaseUrl() + "/installation/search?email=" + URLEncoder.encode(username),
+            contentType: "application/json",
+            headers    : [
+                    Cookie: "vid=" + sessionCookie
+            ]
+    ]
+
+    httpGet(params) { response ->
+        def installationId = response.data[0]["giid"]
+        debug("fetchInstallationId", "Found installation id.")
+        return installationId
     }
 }
 
-def updateAlarmState() {
-    def baseUrl = "https://mypages.verisure.com"
-    def loginUrl = baseUrl + "/j_spring_security_check?locale=en_GB"
+// --- Response handlers for async http
 
-    def sessionCookie = tryCatch({ login(loginUrl) }, "Logging in")
-    def alarmState = tryCatch({ getAlarmState(baseUrl, sessionCookie) }, "Getting alarm state")
-    def climateState = tryCatch({ getClimateState(baseUrl, sessionCookie) }, "Getting climate state")
+def handleLoginResponse(response, data) {
+    debug("handleLoginResponse", "Response for login received")
 
-    if (state.previousAlarmState == null) {
-        state.previousAlarmState = alarmState
+    if (!checkResponse("handleLoginResponse", response)) return
+
+    def sessionCookie = response.json["cookie"]
+    debug("handleLoginResponse", "Session cookie received.")
+
+    fetchStatusFromServer(sessionCookie, fetchInstallationId(sessionCookie))
+}
+
+def checkResponse(context, response) {
+    if (response.hasError() || response.status != 200) {
+        error(context, "Did not get correct response. Got response ${response} .", null)
+        if (response.hasError()) {
+            if (response.errorData.contains("Request limit has been reached")) {
+                state.throttleCounter = 2
+            }
+            debug(context, "Response has error: " + response.errorData)
+        } else {
+            debug(context, "Did not get 200. Response code was: " + Integer.toString(response.status))
+        }
+        return false
     }
+    return true
+}
 
+
+def handleOverviewResponse(response, data) {
+    debug("handleOverviewResponse", "Overview response received. ")
+
+    if (!checkResponse("handleOverviewResponse", response)) return
+
+    parseAlarmState(response.json["armState"])
+    parseSensorResponse(response.json["climateValues"])
+
+    debug("handleOverviewResponse", "Overview response handled")
+    debug("transaction", " ===== END_UPDATE")
+}
+
+// --- Parse responses to Smartthings objects
+
+def parseSensorResponse(climateState) {
+    debug("parseSensorResponse", "Parsing climate sensors")
     //Add or Update Sensors
     climateState.each { updatedJsonDevice ->
-        def tempNumber = Double.parseDouble(updatedJsonDevice.temperature.replace("&#176;", "").replace(",", "."))
-        def humidityNumber = updatedJsonDevice.humidity != "" ? Double.parseDouble(updatedJsonDevice.humidity.replace("%", "").replace(",", ".")) : "0"
+        Double tempNumber = updatedJsonDevice.temperature
+        Double humidityNumber = updatedJsonDevice.humidity
 
-        if (!hasChildDevice(updatedJsonDevice.id)) {
-            addChildDevice(app.namespace, "Verisure Sensor", updatedJsonDevice.id, null, [label: updatedJsonDevice.location, timestamp: updatedJsonDevice.timestamp, humidity: humidityNumber, type: updatedJsonDevice.type, temperature: tempNumber])
+        if (!hasChildDevice(updatedJsonDevice.deviceLabel)) {
+            addChildDevice(app.namespace, "Verisure Sensor", updatedJsonDevice.deviceLabel, null, [
+                    label      : updatedJsonDevice.deviceArea,
+                    timestamp  : updatedJsonDevice.time,
+                    humidity   : humidityNumber,
+                    type       : updatedJsonDevice.deviceType,
+                    temperature: tempNumber
+            ])
             debug("climateDevice.created", updatedJsonDevice.toString())
         } else {
-            def existingDevice = getChildDevice(updatedJsonDevice.id)
+            def existingDevice = getChildDevice(updatedJsonDevice.deviceLabel)
 
-            debug("climateDevice.updated", updatedJsonDevice.location + " | Humidity: " + humidityNumber + " | Temperature: " + tempNumber)
+            debug("climateDevice.updated", updatedJsonDevice.deviceArea + " | Humidity: " + humidityNumber + " | Temperature: " + tempNumber, false)
             existingDevice.sendEvent(name: "humidity", value: humidityNumber)
-            existingDevice.sendEvent(name: "timestamp", value: updatedJsonDevice.timestamp)
-            existingDevice.sendEvent(name: "type", value: updatedJsonDevice.type)
+            existingDevice.sendEvent(name: "timestamp", value: updatedJsonDevice.times)
+            existingDevice.sendEvent(name: "type", value: updatedJsonDevice.deviceType)
             existingDevice.sendEvent(name: "temperature", value: tempNumber)
         }
     }
+}
 
+def parseAlarmState(alarmState) {
+    if (state.previousAlarmState == null) {
+        state.previousAlarmState = alarmState.statusType
+    }
+
+    debug("handleAlarmResponse", "Updating alarm device")
     //Add & update main alarm
     if (!hasChildDevice('verisure-alarm')) {
         debug("alarmDevice.created", alarmDevice)
-        addChildDevice(app.namespace, "Verisure Alarm", "verisure-alarm", null, [status: alarmState.status, loggedBy: alarmState.name, loggedWhen: alarmState.date])
+        addChildDevice(app.namespace, "Verisure Alarm", "verisure-alarm", null, [status: alarmState.statusType, loggedBy: alarmState.name, loggedWhen: alarmState.date])
     } else {
         def alarmDevice = getChildDevice('verisure-alarm')
 
-        debug("alarmDevice.updated", alarmDevice.getDisplayName() + " | Status: " + alarmState.status + " | LoggedBy: " + alarmState.name + " | LoggedWhen: " + alarmState.date)
-        alarmDevice.sendEvent(name: "status", value: alarmState.status)
+        debug("alarmDevice.updated", alarmDevice.getDisplayName() + " | Status: " + alarmState.statusType + " | LoggedBy: " + alarmState.name + " | LoggedWhen: " + alarmState.date, false)
+        alarmDevice.sendEvent(name: "status", value: alarmState.statusType)
         alarmDevice.sendEvent(name: "loggedBy", value: alarmState.name)
         alarmDevice.sendEvent(name: "loggedWhen", value: alarmState.date)
     }
 
-    if (alarmState.status != state.previousAlarmState.status) {
+    if (alarmState.statusType != state.previousAlarmState) {
         debug("updateAlarmState", "State changed, execution actions")
-        state.previousAlarmState = alarmState
-        triggerActions(alarmState.status)
+        state.previousAlarmState = alarmState.statusType
+        triggerActions(alarmState.statusType)
+    } else {
+        debug("updateAlarmState", "State not change. Not triggering routines.")
     }
 }
 
+// -- Helper methods
+
 def triggerActions(alarmState) {
-    if (alarmState == "armed" && armedAction) {
+    if (alarmState == "ARMED" && armedAction) {
         executeAction(armedAction)
-    } else if (alarmState == "unarmed" && unarmedAction) {
+    } else if (alarmState == "DISARMED" && unarmedAction) {
         executeAction(unarmedAction)
-    } else if (alarmState == "armedhome" && armedHomeAction) {
+    } else if (alarmState == "ARMED_HOME" && armedHomeAction) {
         executeAction(armedHomeAction)
+    } else {
+        debug("triggerActions", "No actions found for state: " + alarmState)
     }
 }
 
 def executeAction(action) {
     debug("executeAction", "Executing action ${action}")
     location.helloHome?.execute(action)
-}
-
-
-def login(loginUrl) {
-    def params = [
-            uri               : loginUrl,
-            requestContentType: "application/x-www-form-urlencoded",
-            body              : [
-                    j_username: username,
-                    j_password: password
-            ]
-    ]
-
-    httpPost(params) { response ->
-        if (response.status != 200) {
-            throw new IllegalStateException("Could not authenticate. Got response code ${response.status} . Is the username and password correct?")
-        }
-
-        def cookieHeader = response.headers.'Set-Cookie'
-        if (cookieHeader == null) {
-            throw new RuntimeException("Could not get session cookie! ${response.status} - ${response.data}")
-        }
-
-        return cookieHeader.split(";")[0]
-    }
-}
-
-def getAlarmState(baseUrl, sessionCookie) {
-    def alarmParams = [
-            uri    : baseUrl + "/remotecontrol",
-            headers: [
-                    Cookie: sessionCookie
-            ]
-    ]
-
-    return httpGet(alarmParams) { response ->
-        //debug("Alarm", "Response from Verisure: " + response.data)
-        return response.data.findAll { it."type" == "ARM_STATE" }[0]
-    }
-}
-
-def getClimateState(baseUrl, sessionCookie) {
-    def alarmParams = [
-            uri    : baseUrl + "/overview/climatedevice",
-            headers: [
-                    Cookie: sessionCookie
-            ]
-    ]
-
-    return httpGet(alarmParams) { response ->
-        //debug("Climate", "Response from Verisure: " + response.data)
-        return response.data
-    }
-}
-
-private hasChildDevice(id) {
-    return getChildDevice(id) != null
 }
 
 private removeChildDevices(delete) {
@@ -252,30 +325,53 @@ private removeChildDevices(delete) {
 }
 
 /**
- * The following methods has been added to ease remote debugging as well as enforce a certain way of logging.
+ * Generic method for fetching resource on server
  *
  */
+def fetchResourceFromServer(resource, sessionCookie, installationId, handler) {
+    debug("fetchResourceFromServer", "Fetching resource " + resource)
 
+    def params = [
+            uri        : getBaseUrl() + "/installation/" + installationId + "/" + resource,
+            contentType: "application/json",
+            headers    : [
+                    Cookie: "vid=" + sessionCookie
+            ]
+    ]
+
+    asynchttp_v1.get(handler, params)
+}
+
+// --- The following methods has been added to ease remote debugging as well as enforce a certain way of logging.
 private createLogString(String context, String message) {
     return "[verisure." + context + "] " + message
 }
 
 private error(String context, String text, Exception e) {
+    error(context, text, e, true)
+}
+
+private error(String context, String text, Exception e, Boolean remote) {
     log.error(createLogString(context, text), e)
-    if (logUrl) {
+    if (remote && state.logUrl) {
         httpLog("error", text, e)
     }
 }
 
 private debug(String context, String text) {
+    debug(context, text, true)
+}
+
+private debug(String context, String text, Boolean remote) {
     log.debug(createLogString(context, text))
-    if (logUrl) {
+    if (remote && state.logUrl) {
         httpLog("debug", text, null)
     }
 }
 
 private httpLog(level, text, e) {
     def message = text
+
     if (e) {
         message = message + "\n" + e
     }
@@ -298,16 +394,12 @@ private httpLog(level, text, e) {
     ]
 
     def json_params = [
-            uri    : logUrl,
+            uri    : state.logUrl,
             headers: [
-                    'Authorization': "Splunk ${logToken}"
+                    'Authorization': "Splunk ${state.logToken}"
             ],
             body   : json_body
     ]
 
-    try {
-        httpPostJson(json_params)
-    } catch (logError) {
-        log.warn("Could not log to remote http", logError)
-    }
+    asynchttp_v1.post(json_params)
 }
