@@ -1,16 +1,21 @@
 # Verisure integration
 
+This is an unofficial intergation. No guaranantees. :)
+
 - [SmartApp](smartapps/smartthings-f12-no/verisure.src/verisure.groovy)
 - [Alarm Device Handler](devicetypes/smartthings-f12-no/verisure-alarm.src/verisure-alarm.groovy)
 - [Sensor Device Handler](devicetypes/smartthings-f12-no/verisure-sensor.src/verisure-sensor.groovy)
 
-This SmartApp polls the Verisure alarm at given intervals to update it's state. Default is every 60 seconds, and minimum
-at 15 seconds.
+This SmartApp polls the server every minute.
 
-You'll also need to install the custom device handler to use this smartapp.
+# Installation
+Install the smartapp AND the custom device handlers (Alarm and devices).
 
-NOTE: If the app fails on installation the error is probably in your username/password. Make sure they are correct
-and try again.
+Watch your logs after install. If you entered the wrong username and/or password your account could get blocked if you let the application try too many times!
+
+# Features
+
+- Execute a Routine for different states of Home, Armed and ArmedHome.
 
 ## Verisure Alarm
 - Displays Alarm State
@@ -24,4 +29,11 @@ and try again.
 - Displays Timestamp
 
 # Known Issues
-Together with webcore, temperature and humidity data does not behave as expected. 25,6 turns in to 256 for example not sure how to fix yet. Otherwise it works.
+
+- If you have multiple locations in Veirsure, it will only pick the first one.
+- Not all log entries are shown in the console. This might only occur if you have remote logging enabled.
+
+# Support
+
+- Register [issues here on Github](https://github.com/anderssv/smartthings-verisure/issues).
+- Talk to us at [the thread in the forums](https://community.smartthings.com/t/beta-verisure-integration/95105/4).
