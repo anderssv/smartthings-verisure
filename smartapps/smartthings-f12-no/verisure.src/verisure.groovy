@@ -26,6 +26,7 @@
  *  - 0.2.3 - Added enable/disable option
  *  - 0.5   - Changed to using API servers and async http requests. Great improvements for stability.
  *  - 0.5.1 - Added throttle detection and postponing of updates
+ *  - 0.5.2 - Option to disable remote logging, small cleanups and renamed unarmed to match real status of disarmed
  *
  * NOTES (please read these):
  *
@@ -40,7 +41,7 @@
  * - For some reason not all log entries show up in my console. It does get logged because I get them on the remote Splunk server.
  *
  *
- * Version: 0.5.1
+ * Version: 0.5.2
  *
  */
 definition(
@@ -77,12 +78,13 @@ def setupPage() {
         actions.sort()
 
         section("Action when disarmed") {
-            input "unarmedAction", "enum", title: "Action for unarmed", options: actions, required: false
+            input "disarmedAction", "enum", title: "Action for unarmed", options: actions, required: false
             input "armedAction", "enum", title: "Action for armed", options: actions, required: false
             input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
         }
 
-        section("Errors and logging") {
+        section("Remote logging?") {
+            input "remoteLogEnabled", "bool", defaultValue: "true", title: "Enabled?", required: false
             input "logUrl", "text", title: "Splunk URL to log to", required: false
             input "logToken", "text", title: "Splunk Authorization Token", required: false
         }
@@ -136,8 +138,12 @@ def getAlarmState() {
 def checkPeriodically() {
     debug("transaction", " ===== START_UPDATE")
 
-    // Handling some parameter setup
-    state.app_version = "0.5.1"
+    // Backwards compatibility because of rename. Can be deleted after a little while.
+    state.disarmedAction = disarmedAction ? disarmedAction : unarmedAction
+
+    // Handling some parameter setup, copying from settings to enable programmatically changing them
+    state.app_version = "0.5.2"
+    state.remoteLogEnabled = remoteLogEnabled
     state.logUrl = logUrl
     state.logToken = logToken
 
@@ -304,8 +310,8 @@ def parseAlarmState(alarmState) {
 def triggerActions(alarmState) {
     if (alarmState == "ARMED" && armedAction) {
         executeAction(armedAction)
-    } else if (alarmState == "DISARMED" && unarmedAction) {
-        executeAction(unarmedAction)
+    } else if (alarmState == "DISARMED" && state.disarmedAction) {
+        executeAction(state.disarmedAction)
     } else if (alarmState == "ARMED_HOME" && armedHomeAction) {
         executeAction(armedHomeAction)
     } else {
@@ -353,7 +359,7 @@ private error(String context, String text, Exception e) {
 
 private error(String context, String text, Exception e, Boolean remote) {
     log.error(createLogString(context, text), e)
-    if (remote && state.logUrl) {
+    if (remote && state.remoteLogEnabled) {
         httpLog("error", text, e)
     }
 }
@@ -364,7 +370,7 @@ private debug(String context, String text) {
 
 private debug(String context, String text, Boolean remote) {
     log.debug(createLogString(context, text))
-    if (remote && state.logUrl) {
+    if (remote && state.remoteLogEnabled) {
         httpLog("debug", text, null)
     }
 }
