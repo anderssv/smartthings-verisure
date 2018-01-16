@@ -15,6 +15,7 @@
  *  CHANGE LOG
  *  - 0.1   - Initial release
  *  - 0.2   - Updated to handle values from new API
+ *  - 0.2.1 - Fixed error with ARMED_AWAY state
  *
  * Version: 0.2
  *
@@ -35,7 +36,7 @@ metadata {
     tiles(scale: 2) {
         standardTile("alarmTile", "device.status", width: 6, height: 4, canChangeBackground: true, canChangeIcon: true) {
             state "DISARMED", label: 'Disarmed', backgroundColor: "#6cd18e", icon: "st.Home.home2"
-            state "ARMED", label: 'Armed', backgroundColor: "#c36cd1", icon: "st.Home.home3"
+            state "ARMED_AWAY", label: 'Armed', backgroundColor: "#c36cd1", icon: "st.Home.home3"
             state "ARMED_HOME", label: 'Armed Home', backgroundColor: "#c36cd1", icon: "st.Home.home2"
         }
         valueTile("nameTile", "device.loggedBy", decoration: "flat", height: 2, width: 6, inactiveLabel: false) {

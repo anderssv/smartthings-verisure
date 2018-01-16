@@ -27,6 +27,7 @@
  *  - 0.5   - Changed to using API servers and async http requests. Great improvements for stability.
  *  - 0.5.1 - Added throttle detection and postponing of updates
  *  - 0.5.2 - Option to disable remote logging, small cleanups and renamed unarmed to match real status of disarmed
+ *  - 0.5.3 - Fixed error with ARMED_AWAY state
  *
  * NOTES (please read these):
  *
@@ -308,7 +309,7 @@ def parseAlarmState(alarmState) {
 // -- Helper methods
 
 def triggerActions(alarmState) {
-    if (alarmState == "ARMED" && armedAction) {
+    if (alarmState == "ARMED_AWAY" && armedAction) {
         executeAction(armedAction)
     } else if (alarmState == "DISARMED" && state.disarmedAction) {
         executeAction(state.disarmedAction)
