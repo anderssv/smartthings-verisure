@@ -122,7 +122,7 @@ def initialize() {
 // --- Getters
 
 def getBaseUrl() {
-    return "https://e-api01.verisure.com/xbn/2"
+    return "https://e-api02.verisure.com/xbn/2"
 }
 
 private hasChildDevice(id) {
