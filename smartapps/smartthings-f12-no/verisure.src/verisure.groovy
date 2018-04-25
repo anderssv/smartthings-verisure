@@ -122,7 +122,7 @@ def initialize() {
 // --- Getters
 
 def getBaseUrl() {
-    return "https://e-api02.verisure.com/xbn/2"
+    return "https://e-api01.verisure.com/xbn/2"
 }
 
 private hasChildDevice(id) {
@@ -295,6 +295,7 @@ def parseAlarmState(alarmState) {
         alarmDevice.sendEvent(name: "status", value: alarmState.statusType)
         alarmDevice.sendEvent(name: "loggedBy", value: alarmState.name)
         alarmDevice.sendEvent(name: "loggedWhen", value: alarmState.date)
+        alarmDevice.sendEvent(name: "lastUpdate", value: new Date())
     }
 
     if (alarmState.statusType != state.previousAlarmState) {
