@@ -28,6 +28,7 @@
  *  - 0.5.1 - Added throttle detection and postponing of updates
  *  - 0.5.2 - Option to disable remote logging, small cleanups and renamed unarmed to match real status of disarmed
  *  - 0.5.3 - Fixed error with ARMED_AWAY state
+ *  - 0.5.4 - Added automatic switching of API url when Verisure switches servers
  *
  * NOTES (please read these):
  *
@@ -122,7 +123,19 @@ def initialize() {
 // --- Getters
 
 def getBaseUrl() {
-    return "https://e-api01.verisure.com/xbn/2"
+	if (state.serverUrl == null) {
+    	switchBaseUrl()
+    }
+    return state.serverUrl
+}
+
+def switchBaseUrl() {
+	if (state.serverUrl == "https://e-api01.verisure.com/xbn/2") {
+    	state.serverUrl = "https://e-api02.verisure.com/xbn/2"
+    } else {
+    	state.serverUrl = "https://e-api01.verisure.com/xbn/2"
+    }
+    debug("switchBaseUrl", "Base url switched to ${state.serverUrl} . ")
 }
 
 private hasChildDevice(id) {
@@ -143,7 +156,7 @@ def checkPeriodically() {
     state.disarmedAction = disarmedAction ? disarmedAction : unarmedAction
 
     // Handling some parameter setup, copying from settings to enable programmatically changing them
-    state.app_version = "0.5.2"
+    state.app_version = "0.5.4"
     state.remoteLogEnabled = remoteLogEnabled
     state.logUrl = logUrl
     state.logToken = logToken
@@ -225,6 +238,8 @@ def checkResponse(context, response) {
         if (response.hasError()) {
             if (response.errorData.contains("Request limit has been reached")) {
                 state.throttleCounter = 2
+            } else if (response.errorData.contains("XBN Database is not activated")) {
+            	switchBaseUrl()
             }
             debug(context, "Response has error: " + response.errorData)
         } else {
