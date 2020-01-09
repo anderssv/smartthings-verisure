@@ -77,18 +77,23 @@ def setupPage() {
         }
 
         def actions = location.helloHome?.getPhrases()*.label
-        actions.sort()
+        if (actions) {
+           debug("initializing", "Phrase list found: ${actions}")
+           actions.sort()
 
-        section("Action when disarmed") {
-            input "disarmedAction", "enum", title: "Action for unarmed", options: actions, required: false
-            input "armedAction", "enum", title: "Action for armed", options: actions, required: false
-            input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
-        }
+            section("Action when disarmed") {
+                input "disarmedAction", "enum", title: "Action for unarmed", options: actions, required: false
+                input "armedAction", "enum", title: "Action for armed", options: actions, required: false
+                input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
+            }
 
-        section("Remote logging?") {
-            input "remoteLogEnabled", "bool", defaultValue: "true", title: "Enabled?", required: false
-            input "logUrl", "text", title: "Splunk URL to log to", required: false
-            input "logToken", "text", title: "Splunk Authorization Token", required: false
+            section("Remote logging?") {
+                input "remoteLogEnabled", "bool", defaultValue: "true", title: "Enabled?", required: false
+                input "logUrl", "text", title: "Splunk URL to log to", required: false
+                input "logToken", "text", title: "Splunk Authorization Token", required: false
+            }
+		} else {
+           debug("initializing", "Phrase list not found")
         }
     }
 }
