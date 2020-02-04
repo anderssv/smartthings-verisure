@@ -29,6 +29,7 @@
  *  - 0.5.2 - Option to disable remote logging, small cleanups and renamed unarmed to match real status of disarmed
  *  - 0.5.3 - Fixed error with ARMED_AWAY state
  *  - 0.5.4 - Added automatic switching of API url when Verisure switches servers
+ *  - 0.5.5 - Avoiding crashes even if you have no routines. This makes the state changes usable in the new ST app.
  *
  * NOTES (please read these):
  *
@@ -43,7 +44,7 @@
  * - For some reason not all log entries show up in my console. It does get logged because I get them on the remote Splunk server.
  *
  *
- * Version: 0.5.2
+ * Version: 0.5.5
  *
  */
 definition(
@@ -77,23 +78,23 @@ def setupPage() {
         }
 
         def actions = location.helloHome?.getPhrases()*.label
-        if (actions) {
-           debug("initializing", "Phrase list found: ${actions}")
-           actions.sort()
+        section("Actions when alarm changes state") {
+            if (actions) {
+                actions.sort()
 
-            section("Action when disarmed") {
                 input "disarmedAction", "enum", title: "Action for unarmed", options: actions, required: false
                 input "armedAction", "enum", title: "Action for armed", options: actions, required: false
                 input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
+            } else {
+                paragraph "We could not find any routines. Create some to trigger actions. If you are using the new ST app this is not possible as it do not have Routines."
             }
+        }
 
-            section("Remote logging?") {
-                input "remoteLogEnabled", "bool", defaultValue: "true", title: "Enabled?", required: false
-                input "logUrl", "text", title: "Splunk URL to log to", required: false
-                input "logToken", "text", title: "Splunk Authorization Token", required: false
-            }
-		} else {
-           debug("initializing", "Phrase list not found")
+        section("Remote logging? (Works with Splunk)") {
+            paragraph "Only enable the below setting if you intend to send your logs somewhere else."
+            input "remoteLogEnabled", "bool", defaultValue: "true", title: "Enable remote logging?", required: false
+            input "logUrl", "text", title: "Splunk URL to log to", required: false
+            input "logToken", "text", title: "Splunk Authorization Token", required: false
         }
     }
 }
@@ -128,17 +129,17 @@ def initialize() {
 // --- Getters
 
 def getBaseUrl() {
-	if (state.serverUrl == null) {
-    	switchBaseUrl()
+    if (state.serverUrl == null) {
+        switchBaseUrl()
     }
     return state.serverUrl
 }
 
 def switchBaseUrl() {
-	if (state.serverUrl == "https://e-api01.verisure.com/xbn/2") {
-    	state.serverUrl = "https://e-api02.verisure.com/xbn/2"
+    if (state.serverUrl == "https://e-api01.verisure.com/xbn/2") {
+        state.serverUrl = "https://e-api02.verisure.com/xbn/2"
     } else {
-    	state.serverUrl = "https://e-api01.verisure.com/xbn/2"
+        state.serverUrl = "https://e-api01.verisure.com/xbn/2"
     }
     debug("switchBaseUrl", "Base url switched to ${state.serverUrl} . ")
 }
@@ -244,7 +245,7 @@ def checkResponse(context, response) {
             if (response.errorData.contains("Request limit has been reached")) {
                 state.throttleCounter = 2
             } else if (response.errorData.contains("XBN Database is not activated")) {
-            	switchBaseUrl()
+                switchBaseUrl()
             }
             debug(context, "Response has error: " + response.errorData)
         } else {
