@@ -29,6 +29,7 @@ metadata {
         attribute "status", "string"
         attribute "loggedBy", "string"
         attribute "loggedWhen", "string"
+        attribute "lastUpdate", "string"
     }
 
     simulator {}
@@ -45,8 +46,11 @@ metadata {
         valueTile("dateTile", "device.loggedWhen", decoration: "flat", height: 2, width: 6, inactiveLabel: false) {
             state "loggedWhen", label: 'Time: ${currentValue}'
         }
+        valueTile("updateTile", "device.lastUpdate", decoration: "flat", height: 2, width: 6, inactiveLabel: false) {
+            state "lastUpdate", label: 'Updated: ${currentValue}'
+        }
         main("alarmTile")
-        details(["alarmTile", "nameTile", "dateTile"])
+        details(["alarmTile", "nameTile", "dateTile", "updateTile"])
     }
 }
 
