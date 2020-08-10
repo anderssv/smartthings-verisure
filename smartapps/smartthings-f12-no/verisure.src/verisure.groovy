@@ -78,10 +78,10 @@ def setupPage() {
             input "password", "password", title: "Password"
         }
 
-		section("Set modes when alarm changes state") {
-        	input "disarmedMode", "mode", title: "Mode for unarmed", multiple: false, required: false
-        	input "armedMode", "mode", title: "Mode for armed", multiple: false, required: false
-          	input "armedHomeMode", "mode", title: "Mode for armed home", multiple: false, required: false
+        section("Set modes when alarm changes state") {
+            input "disarmedMode", "mode", title: "Mode for unarmed", multiple: false, required: false
+            input "armedMode", "mode", title: "Mode for armed", multiple: false, required: false
+            input "armedHomeMode", "mode", title: "Mode for armed home", multiple: false, required: false
         }
 
         section("Remote logging? (Works with Splunk)") {
@@ -167,18 +167,18 @@ def checkPeriodically() {
         state.throttleCounter = state.throttleCounter - 1
         return
     }
-    
-    
+
+
     def timeSinceCookie = new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ssZ", state.sessionCookieTime).time
     if (timeSinceCookie > 172800000) { // 48 hours
-    	debug("checkPeriodically", "Session cookie gone stale. Baking a new one.")
-    	state.sessionCookie = null
-    	state.installationId = null
+        debug("checkPeriodically", "Session cookie gone stale. Baking a new one.")
+        state.sessionCookie = null
+        state.installationId = null
     }
-    
+
     if (state.sessionCookie == null || state.installationId == null) {
-	    try {
-	        loginAndUpdateStates()
+        try {
+            loginAndUpdateStates()
         } catch (Exception e) {
             error("checkPeriodically", "Error logging in and getting session cookie.", e)
         }
@@ -240,7 +240,7 @@ def handleLoginResponse(response, data) {
     def sessionCookie = response.json["cookie"]
     debug("handleLoginResponse", "Session cookie received.")
 
-	state.sessionCookie = sessionCookie
+    state.sessionCookie = sessionCookie
     state.sessionCookieTime = new Date()
     state.installationId = fetchInstallationId(sessionCookie)
 
@@ -258,7 +258,7 @@ def checkResponse(context, response) {
             }
             state.sessionCookie = null
             state.installationId = null
-            debug(context, "Response has error. sessionCookie and installationId is reset: " + response.errorData)           
+            debug(context, "Response has error. sessionCookie and installationId is reset: " + response.errorData)
         } else {
             debug(context, "Did not get 200. Response code was: " + Integer.toString(response.status))
         }
