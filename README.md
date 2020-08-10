@@ -36,4 +36,4 @@ Watch your logs after install. If you entered the wrong username and/or password
 # Support
 
 - Register [issues here on Github](https://github.com/anderssv/smartthings-verisure/issues).
-- Talk to us at [the thread in the forums](https://community.smartthings.com/t/beta-verisure-integration/95105/4).
+- Talk to us at [the thread in the forums](https://community.smartthings.com/t/release-verisure-integration/201617).
