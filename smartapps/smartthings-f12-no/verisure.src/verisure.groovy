@@ -30,6 +30,7 @@
  *  - 0.5.3 - Fixed error with ARMED_AWAY state
  *  - 0.5.4 - Added automatic switching of API url when Verisure switches servers
  *  - 0.5.5 - Avoiding crashes even if you have no routines. This makes the state changes usable in the new ST app.
+ *  - 0.6.0 - Updated to change hub mode because of upgrade to new ST app.
  *
  * NOTES (please read these):
  *
@@ -44,7 +45,7 @@
  * - For some reason not all log entries show up in my console. It does get logged because I get them on the remote Splunk server.
  *
  *
- * Version: 0.5.5
+ * Version: 0.6.0
  *
  */
 definition(
@@ -77,17 +78,10 @@ def setupPage() {
             input "password", "password", title: "Password"
         }
 
-        def actions = location.helloHome?.getPhrases()*.label
-        section("Actions when alarm changes state") {
-            if (actions) {
-                actions.sort()
-
-                input "disarmedAction", "enum", title: "Action for unarmed", options: actions, required: false
-                input "armedAction", "enum", title: "Action for armed", options: actions, required: false
-                input "armedHomeAction", "enum", title: "Action for armed home", options: actions, required: false
-            } else {
-                paragraph "We could not find any routines. Create some to trigger actions. If you are using the new ST app this is not possible as it do not have Routines."
-            }
+		section("Set modes when alarm changes state") {
+        	input "disarmedMode", "mode", title: "Mode for unarmed", multiple: false, required: false
+        	input "armedMode", "mode", title: "Mode for armed", multiple: false, required: false
+          	input "armedHomeMode", "mode", title: "Mode for armed home", multiple: false, required: false
         }
 
         section("Remote logging? (Works with Splunk)") {
@@ -158,11 +152,8 @@ def getAlarmState() {
 def checkPeriodically() {
     debug("transaction", " ===== START_UPDATE")
 
-    // Backwards compatibility because of rename. Can be deleted after a little while.
-    state.disarmedAction = disarmedAction ? disarmedAction : unarmedAction
-
     // Handling some parameter setup, copying from settings to enable programmatically changing them
-    state.app_version = "0.5.4"
+    state.app_version = "0.6.0"
     state.remoteLogEnabled = remoteLogEnabled
     state.logUrl = logUrl
     state.logToken = logToken
@@ -172,14 +163,28 @@ def checkPeriodically() {
         debug("checkPeriodically", "Not updating status as alarm is disabled in settings.")
         return
     } else if (state.throttleCounter && state.throttleCounter > 0) {
-        debug("checkPeriodically", "Got throttling errors, postponing poll another " + state.throttleCounter + " minutes.")
+        debug("checkPeriodically", "Previously got throttling errors, postponing poll another " + state.throttleCounter + " minutes.")
         state.throttleCounter = state.throttleCounter - 1
         return
     }
-    try {
-        loginAndUpdateStates()
-    } catch (Exception e) {
-        error("checkPeriodically", "Error updating alarm state", e)
+    
+    
+    def timeSinceCookie = new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ssZ", state.sessionCookieTime).time
+    if (timeSinceCookie > 172800000) { // 48 hours
+    	debug("checkPeriodically", "Session cookie gone stale. Baking a new one.")
+    	state.sessionCookie = null
+    	state.installationId = null
+    }
+    
+    if (state.sessionCookie == null || state.installationId == null) {
+	    try {
+	        loginAndUpdateStates()
+        } catch (Exception e) {
+            error("checkPeriodically", "Error logging in and getting session cookie.", e)
+        }
+    } else {
+        debug("checkPeriodically", "Session cookie already initialised. Time of initialisation: ${state.sessionCookieTime}")
+        fetchStatusFromServer(state.sessionCookie, state.installationId)
     }
 }
 
@@ -235,7 +240,11 @@ def handleLoginResponse(response, data) {
     def sessionCookie = response.json["cookie"]
     debug("handleLoginResponse", "Session cookie received.")
 
-    fetchStatusFromServer(sessionCookie, fetchInstallationId(sessionCookie))
+	state.sessionCookie = sessionCookie
+    state.sessionCookieTime = new Date()
+    state.installationId = fetchInstallationId(sessionCookie)
+
+    fetchStatusFromServer(sessionCookie, state.installationId)
 }
 
 def checkResponse(context, response) {
@@ -247,7 +256,9 @@ def checkResponse(context, response) {
             } else if (response.errorData.contains("XBN Database is not activated")) {
                 switchBaseUrl()
             }
-            debug(context, "Response has error: " + response.errorData)
+            state.sessionCookie = null
+            state.installationId = null
+            debug(context, "Response has error. sessionCookie and installationId is reset: " + response.errorData)           
         } else {
             debug(context, "Did not get 200. Response code was: " + Integer.toString(response.status))
         }
@@ -320,31 +331,31 @@ def parseAlarmState(alarmState) {
     }
 
     if (alarmState.statusType != state.previousAlarmState) {
-        debug("updateAlarmState", "State changed, execution actions")
+        debug("updateAlarmState", "Alarm state changed to ${alarmState.statusType}, changing mode")
         state.previousAlarmState = alarmState.statusType
-        triggerActions(alarmState.statusType)
+        changeMode(alarmState.statusType)
     } else {
-        debug("updateAlarmState", "State not change. Not triggering routines.")
+        debug("updateAlarmState", "State not changed. Not triggering mode changes. Previous: ${state.previousAlarmState}, Current: ${alarmState.statusType}.")
     }
 }
 
 // -- Helper methods
 
-def triggerActions(alarmState) {
-    if (alarmState == "ARMED_AWAY" && armedAction) {
-        executeAction(armedAction)
-    } else if (alarmState == "DISARMED" && state.disarmedAction) {
-        executeAction(state.disarmedAction)
-    } else if (alarmState == "ARMED_HOME" && armedHomeAction) {
-        executeAction(armedHomeAction)
+def changeMode(alarmState) {
+    if (alarmState == "ARMED_AWAY" && armedMode) {
+        setMode(armedMode)
+    } else if (alarmState == "DISARMED" && disarmedMode) {
+        setMode(disarmedMode)
+    } else if (alarmState == "ARMED_HOME" && armedHomeMode) {
+        setMode(armedHomeMode)
     } else {
-        debug("triggerActions", "No actions found for state: " + alarmState)
+        debug("changeMode", "No mode defined for state: " + alarmState)
     }
 }
 
-def executeAction(action) {
-    debug("executeAction", "Executing action ${action}")
-    location.helloHome?.execute(action)
+def setMode(action) {
+    debug("setMode", "Setting mode ${action}")
+    location.setMode(action)
 }
 
 private removeChildDevices(delete) {
