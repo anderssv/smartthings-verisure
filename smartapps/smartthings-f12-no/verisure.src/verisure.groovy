@@ -168,12 +168,13 @@ def checkPeriodically() {
         return
     }
 
-
-    def timeSinceCookie = new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ssZ", state.sessionCookieTime).time
-    if (timeSinceCookie > 172800000) { // 48 hours
-        debug("checkPeriodically", "Session cookie gone stale. Baking a new one.")
-        state.sessionCookie = null
-        state.installationId = null
+    if (state.sessionCookie != null) {
+        def timeSinceCookie = new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ssZ", state.sessionCookieTime).time
+        if (timeSinceCookie > 172800000) { // 48 hours
+            debug("checkPeriodically", "Session cookie gone stale. Baking a new one.")
+            state.sessionCookie = null
+            state.installationId = null
+        }
     }
 
     if (state.sessionCookie == null || state.installationId == null) {
