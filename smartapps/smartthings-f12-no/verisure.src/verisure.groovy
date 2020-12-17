@@ -36,13 +36,14 @@
  *
  * - WARNING: Your credentials are no longer checked on first login. WATCH THE LOGS AFTER INSTALLATION for errors.
  *
- * - Some errors still occur. There are intermittent:
- *      - groovyx.net.http.HttpResponseException: Unauthorized
- *      - "Request limit has been reached" - In this event the app will wait a couple of minutes before trying again.
+ * Known errors:
+ *   - groovyx.net.http.HttpResponseException: Unauthorized
+ *   - "Request limit has been reached" - In this event the app will wait a couple of minutes before trying again.
+ *   - For some reason not all log entries show up in my console. It does get logged because I get them on the remote Splunk server.
  *
- * - If you have several locations in Verisure this app will currently not work. Sorry, let me know if you need it. :)
- *
- * - For some reason not all log entries show up in my console. It does get logged because I get them on the remote Splunk server.
+ * Missing features:
+ *   - If you have several locations in Verisure this app will currently not work. Sorry, let me know if you need it. :)
+ *   - Devices needs to be updated for the new ST Apps Capabilities.
  *
  *
  * Version: 0.6.0
