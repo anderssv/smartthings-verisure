@@ -23,7 +23,8 @@ metadata {
     definition(
             name: "Verisure Sensor",
             author: "Martin Carlsson",
-            namespace: "smartthings.f12.no") {
+            namespace: "smartthings.f12.no",
+            ocfDeviceType: "oic.d.thermostat") {
         capability "Temperature Measurement"
         capability "Relative Humidity Measurement"
         capability "Sensor"
