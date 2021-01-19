@@ -31,6 +31,7 @@
  *  - 0.5.4 - Added automatic switching of API url when Verisure switches servers
  *  - 0.5.5 - Avoiding crashes even if you have no routines. This makes the state changes usable in the new ST app.
  *  - 0.6.0 - Updated to change hub mode because of upgrade to new ST app.
+ *  - 0.6.1 - Added support for Door/Window (Contact Sensor)
  *
  * NOTES (please read these):
  *
@@ -46,7 +47,7 @@
  *   - Devices needs to be updated for the new ST Apps Capabilities.
  *
  *
- * Version: 0.6.0
+ * Version: 0.6.1
  *
  */
 definition(
@@ -154,7 +155,7 @@ def checkPeriodically() {
     debug("transaction", " ===== START_UPDATE")
 
     // Handling some parameter setup, copying from settings to enable programmatically changing them
-    state.app_version = "0.6.0"
+    state.app_version = "0.6.1"
     state.remoteLogEnabled = remoteLogEnabled
     state.logUrl = logUrl
     state.logToken = logToken
@@ -277,7 +278,12 @@ def handleOverviewResponse(response, data) {
 
     parseAlarmState(response.json["armState"])
     parseSensorResponse(response.json["climateValues"])
+    parseContactSensorResponse(response.json["doorWindow"])
 
+    // TODO:
+    // parseDoorLockResponse(response.json["doorLockStatusList"])
+    // parseSmartPlugsResponse(response.json["smartPlugs"])
+    // parseHeatPumpsResponse(response.json["heatPumps"])
     debug("handleOverviewResponse", "Overview response handled")
     debug("transaction", " ===== END_UPDATE")
 }
@@ -309,6 +315,27 @@ def parseSensorResponse(climateState) {
             existingDevice.sendEvent(name: "type", value: updatedJsonDevice.deviceType)
             existingDevice.sendEvent(name: "temperature", value: tempNumber)
         }
+    }
+}
+
+def parseContactSensorResponse(contactSensorDevice) {
+    debug("parseContactSensorResponse", "Parsing Door/window Devices")
+
+    contactSensorDevice["doorWindowDevice"].each { updatedJsonDevice ->
+      String state = updatedJsonDevice.state == "CLOSE" ? "closed" : "open"
+		  String timestamp = updatedJsonDevice.reportTime
+      if (!hasChildDevice(updatedJsonDevice.deviceLabel)) {
+        addChildDevice(app.namespace, "Verisure Contact Sensor", updatedJsonDevice.deviceLabel, null, [
+                    "contact"   : state,
+                    "timestamp"   : timestamp,
+                    label      : updatedJsonDevice.area
+        ])
+        debug("contactSensorDevice.created", updatedJsonDevice.toString())
+      }
+      def existingDevice = getChildDevice(updatedJsonDevice.deviceLabel)
+      debug("contactSensorDevice.updated", updatedJsonDevice.area + " | contact: " + state + " | timestamp: " + timestamp, false)
+      existingDevice.sendEvent(name: "contact", value: state)
+      existingDevice.sendEvent(name: "timestamp", value: timestamp)
     }
 }
 
