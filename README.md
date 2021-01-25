@@ -9,20 +9,24 @@ This is an unofficial intergation. No guaranantees. :)
 This SmartApp polls the server every minute.
 
 # Installation
+
 Install the smartapp AND the custom device handlers (Alarm and devices).
 
-Watch your logs after install. If you entered the wrong username and/or password your account could get blocked if you let the application try too many times!
+Watch your logs after install. If you entered the wrong username and/or password your account could get blocked if you
+let the application try too many times!
 
 # Features
 
 - Execute a Routine for different states of Home, Armed and ArmedHome.
 
 ## Verisure Alarm
+
 - Displays Alarm State
 - Displays State Change Timestamp
 - Displays State Change By
 
 ## Verisure Sensor
+
 - Displays Temperature
 - Displays Humidity
 - Displays Type

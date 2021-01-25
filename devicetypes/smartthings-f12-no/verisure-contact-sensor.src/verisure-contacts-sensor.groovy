@@ -31,17 +31,17 @@ metadata {
 
     tiles {
 
-      standardTile("contact", "device.contact", width: 2, height: 2, canChangeBackground: true, canChangeIcon: true) {
-        state "closed", label: 'Closed', backgroundColor: "#6cd18e", icon: "st.contact.contact.closed"
-        state "open", label: 'Open', backgroundColor: "#c36cd1", icon: "st.contact.contact.open"
-      }
+        standardTile("contact", "device.contact", width: 2, height: 2, canChangeBackground: true, canChangeIcon: true) {
+            state "closed", label: 'Closed', backgroundColor: "#6cd18e", icon: "st.contact.contact.closed"
+            state "open", label: 'Open', backgroundColor: "#c36cd1", icon: "st.contact.contact.open"
+        }
 
-      valueTile("timestamp", "device.timestamp", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
-        state "timestamp", label:'${currentValue}% timestamp', unit:""
-      }
+        valueTile("timestamp", "device.timestamp", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+            state "timestamp", label: '${currentValue}% timestamp', unit: ""
+        }
 
-      main("contact")
-    	details(["contact", "timestamp"])
+        main("contact")
+        details(["contact", "timestamp"])
     }
 }
 

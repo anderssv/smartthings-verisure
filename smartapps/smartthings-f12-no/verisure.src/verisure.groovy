@@ -322,20 +322,20 @@ def parseContactSensorResponse(contactSensorDevice) {
     debug("parseContactSensorResponse", "Parsing Door/window Devices")
 
     contactSensorDevice["doorWindowDevice"].each { updatedJsonDevice ->
-      String state = updatedJsonDevice.state == "CLOSE" ? "closed" : "open"
-		  String timestamp = updatedJsonDevice.reportTime
-      if (!hasChildDevice(updatedJsonDevice.deviceLabel)) {
-        addChildDevice(app.namespace, "Verisure Contact Sensor", updatedJsonDevice.deviceLabel, null, [
-                    "contact"   : state,
-                    "timestamp"   : timestamp,
+        String state = updatedJsonDevice.state == "CLOSE" ? "closed" : "open"
+        String timestamp = updatedJsonDevice.reportTime
+        if (!hasChildDevice(updatedJsonDevice.deviceLabel)) {
+            addChildDevice(app.namespace, "Verisure Contact Sensor", updatedJsonDevice.deviceLabel, null, [
+                    "contact"  : state,
+                    "timestamp": timestamp,
                     label      : updatedJsonDevice.area
-        ])
-        debug("contactSensorDevice.created", updatedJsonDevice.toString())
-      }
-      def existingDevice = getChildDevice(updatedJsonDevice.deviceLabel)
-      debug("contactSensorDevice.updated", updatedJsonDevice.area + " | contact: " + state + " | timestamp: " + timestamp, false)
-      existingDevice.sendEvent(name: "contact", value: state)
-      existingDevice.sendEvent(name: "timestamp", value: timestamp)
+            ])
+            debug("contactSensorDevice.created", updatedJsonDevice.toString())
+        }
+        def existingDevice = getChildDevice(updatedJsonDevice.deviceLabel)
+        debug("contactSensorDevice.updated", updatedJsonDevice.area + " | contact: " + state + " | timestamp: " + timestamp, false)
+        existingDevice.sendEvent(name: "contact", value: state)
+        existingDevice.sendEvent(name: "timestamp", value: timestamp)
     }
 }
 
