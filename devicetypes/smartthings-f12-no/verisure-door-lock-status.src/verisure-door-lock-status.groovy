@@ -12,8 +12,10 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ * ------------------------------------------------------
  *  Only Status locked/inlocked is displayed in APP
  *  Some more attributed visible in DEV console
+ * ------------------------------------------------------
  *
  *  CHANGE LOG
  *  - 0.1   - Initial release - Status only, no actions to lock/unlock
@@ -38,13 +40,33 @@ metadata {
 
     tiles {
 
+
       standardTile("lock", "device.lock", width: 2, height: 2, canChangeBackground: true, canChangeIcon: true) {
         state "locked", label: 'Locked', backgroundColor: "#6cd18e", icon: "st.locks.lock.locked"
+        state "unknown", label: 'Unknown', backgroundColor: "#6cd18e", icon: "st.locks.lock.unknown"
         state "unlocked", label: 'Unlocked', backgroundColor: "#6cd18e", icon: "st.locks.lock.unlocked"
+        state "unlocked with timeout",  label: 'Unlocked Timeout', backgroundColor: "#6cd18e", icon: "st.locks.lock.unlocked"
+      }
+
+      valueTile("method", "device.method", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+        state "method", label:'${currentValue}', unit:""
+      }
+      valueTile("paired", "device.paired", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+        state "paired", label:'${currentValue}', unit:""
+      }
+      valueTile("motorJam", "device.motorJam", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+        state "motorJam", label:'${currentValue}', unit:""
+      }
+      valueTile("rawLock", "device.rawLock", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+        state "rawLock", label:'${currentValue}', unit:""
+      }
+
+      valueTile("timestamp", "device.timestamp", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+        state "timestamp", label:'${currentValue}% timestamp', unit:""
       }
 
       main(["lock", "method"])
-    	details(["lock", "method", "paired", "motorJam", "timestamp"])
+    	details(["lock", "method", "paired", "motorJam", "rawLock", "timestamp"])
     }
 }
 

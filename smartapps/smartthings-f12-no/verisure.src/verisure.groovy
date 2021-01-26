@@ -362,7 +362,7 @@ def parseDoorLockStatusResponse(doorLockStatus) {
         debug("doorLockStatusDevice.created: ", updatedJsonDevice.toString())
       }
       def existingDevice = getChildDevice(updatedJsonDevice.deviceLabel)
-      debug("doorLockStatusDevice.updated", updatedJsonDevice.area + " | lock: " + locktate + " | rawLock: " + updatedJsonDevice.currentLockState + " | method: " + method + " | paired: " + paired + " | motorJam: " + motorJam + " | timestamp: " + timestamp, false)
+      debug("doorLockStatusDevice.updated", updatedJsonDevice.area + " | lock: " + lockState + " | rawLock: " + updatedJsonDevice.currentLockState + " | method: " + method + " | paired: " + paired + " | motorJam: " + motorJam + " | timestamp: " + timestamp, false)
       existingDevice.sendEvent(name: "lock", value: lockState)
       existingDevice.sendEvent(name: "method", value: method)
       existingDevice.sendEvent(name: "paired", value: paired)
