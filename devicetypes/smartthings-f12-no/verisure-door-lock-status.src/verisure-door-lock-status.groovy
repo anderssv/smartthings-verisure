@@ -41,32 +41,32 @@ metadata {
     tiles {
 
 
-      standardTile("lock", "device.lock", width: 2, height: 2, canChangeBackground: true, canChangeIcon: true) {
-        state "locked", label: 'Locked', backgroundColor: "#6cd18e", icon: "st.locks.lock.locked"
-        state "unknown", label: 'Unknown', backgroundColor: "#6cd18e", icon: "st.locks.lock.unknown"
-        state "unlocked", label: 'Unlocked', backgroundColor: "#6cd18e", icon: "st.locks.lock.unlocked"
-        state "unlocked with timeout",  label: 'Unlocked Timeout', backgroundColor: "#6cd18e", icon: "st.locks.lock.unlocked"
-      }
+        standardTile("lock", "device.lock", width: 2, height: 2, canChangeBackground: true, canChangeIcon: true) {
+            state "locked", label: 'Locked', backgroundColor: "#6cd18e", icon: "st.locks.lock.locked"
+            state "unknown", label: 'Unknown', backgroundColor: "#6cd18e", icon: "st.locks.lock.unknown"
+            state "unlocked", label: 'Unlocked', backgroundColor: "#6cd18e", icon: "st.locks.lock.unlocked"
+            state "unlocked with timeout", label: 'Unlocked Timeout', backgroundColor: "#6cd18e", icon: "st.locks.lock.unlocked"
+        }
 
-      valueTile("method", "device.method", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
-        state "method", label:'${currentValue}', unit:""
-      }
-      valueTile("paired", "device.paired", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
-        state "paired", label:'${currentValue}', unit:""
-      }
-      valueTile("motorJam", "device.motorJam", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
-        state "motorJam", label:'${currentValue}', unit:""
-      }
-      valueTile("rawLock", "device.rawLock", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
-        state "rawLock", label:'${currentValue}', unit:""
-      }
+        valueTile("method", "device.method", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+            state "method", label: '${currentValue}', unit: ""
+        }
+        valueTile("paired", "device.paired", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+            state "paired", label: '${currentValue}', unit: ""
+        }
+        valueTile("motorJam", "device.motorJam", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+            state "motorJam", label: '${currentValue}', unit: ""
+        }
+        valueTile("rawLock", "device.rawLock", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+            state "rawLock", label: '${currentValue}', unit: ""
+        }
 
-      valueTile("timestamp", "device.timestamp", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
-        state "timestamp", label:'${currentValue}% timestamp', unit:""
-      }
+        valueTile("timestamp", "device.timestamp", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
+            state "timestamp", label: '${currentValue}% timestamp', unit: ""
+        }
 
-      main(["lock", "method"])
-    	details(["lock", "method", "paired", "motorJam", "rawLock", "timestamp"])
+        main(["lock", "method"])
+        details(["lock", "method", "paired", "motorJam", "rawLock", "timestamp"])
     }
 }
 
