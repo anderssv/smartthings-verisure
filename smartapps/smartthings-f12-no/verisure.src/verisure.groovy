@@ -32,6 +32,7 @@
  *  - 0.5.5 - Avoiding crashes even if you have no routines. This makes the state changes usable in the new ST app.
  *  - 0.6.0 - Updated to change hub mode because of upgrade to new ST app.
  *  - 0.6.1 - Added support for Door/Window (Contact Sensor)
+ *  - 0.6.2 - Added support for Door Lock Status (Verisure Yale Doorman) - status only, no actions to lock/unlock
  *
  * NOTES (please read these):
  *
@@ -279,9 +280,9 @@ def handleOverviewResponse(response, data) {
     parseAlarmState(response.json["armState"])
     parseSensorResponse(response.json["climateValues"])
     parseContactSensorResponse(response.json["doorWindow"])
+    parseDoorLockStatusResponse(response.json["doorLockStatusList"])
 
     // TODO:
-    // parseDoorLockResponse(response.json["doorLockStatusList"])
     // parseSmartPlugsResponse(response.json["smartPlugs"])
     // parseHeatPumpsResponse(response.json["heatPumps"])
     debug("handleOverviewResponse", "Overview response handled")
@@ -338,6 +339,40 @@ def parseContactSensorResponse(contactSensorDevice) {
         existingDevice.sendEvent(name: "timestamp", value: timestamp)
     }
 }
+
+def parseDoorLockStatusResponse(doorLockStatus) {
+    debug("parseDoorLockStatusResponse", "Parsing Door Lock Status")
+    doorLockStatus.each { updatedJsonDevice ->
+      String lockState = updatedJsonDevice.currentLockState == "UNLOCKED" ? "unlocked" : "locked"
+      String method = updatedJsonDevice.method
+		  String timestamp = updatedJsonDevice.eventTime
+      String paired = updatedJsonDevice.paired
+      String motorJam = updatedJsonDevice.motorJam
+
+      if (!hasChildDevice(updatedJsonDevice.deviceLabel)) {
+        addChildDevice(app.namespace, "Verisure Door Lock Status", updatedJsonDevice.deviceLabel, null, [
+                    "lock"     : lockState,
+                    "method"   : method,
+                    "paired"   : paired,
+                    "motorJam" : motorJam,
+                    "timestamp": timestamp,
+                    "rawLock"  : updatedJsonDevice.currentLockState,
+                    label      : updatedJsonDevice.area
+        ])
+        debug("doorLockStatusDevice.created: ", updatedJsonDevice.toString())
+      }
+      def existingDevice = getChildDevice(updatedJsonDevice.deviceLabel)
+      debug("doorLockStatusDevice.updated", updatedJsonDevice.area + " | lock: " + lockState + " | rawLock: " + updatedJsonDevice.currentLockState + " | method: " + method + " | paired: " + paired + " | motorJam: " + motorJam + " | timestamp: " + timestamp, false)
+      existingDevice.sendEvent(name: "lock", value: lockState)
+      existingDevice.sendEvent(name: "method", value: method)
+      existingDevice.sendEvent(name: "paired", value: paired)
+      existingDevice.sendEvent(name: "motorJam", value: motorJam)
+      existingDevice.sendEvent(name: "timestamp", value: timestamp)
+      existingDevice.sendEvent(name: "rawLock", value: updatedJsonDevice.currentLockState)
+
+    }
+}
+
 
 def parseAlarmState(alarmState) {
     if (state.previousAlarmState == null) {
