@@ -90,7 +90,7 @@ def setupPage() {
 
         section("Verisure installation") {
             paragraph "WARNING: Untested territory"
-            paragraph "IF you have multiple sites, you can change which installation to use. Use at your own risk. Leave default if you are not sure."
+            paragraph "IF you have multiple sites, you can change which installation to use. If you only have one installation the correct number is 0, and is the default for everyone. To choose the second installation enter 1."
             input "installationNumber", "number", "title": "Installation number", defaultValue: 0
         }
 
