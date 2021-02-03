@@ -33,6 +33,7 @@
  *  - 0.6.0 - Updated to change hub mode because of upgrade to new ST app.
  *  - 0.6.1 - Added support for Door/Window (Contact Sensor)
  *  - 0.6.2 - Added support for Door Lock Status (Verisure Yale Doorman) - status only, no actions to lock/unlock
+ *  - 0.6.3 - Option for choosing installation number. Use at own risk.
  *
  * NOTES (please read these):
  *
@@ -87,9 +88,16 @@ def setupPage() {
             input "armedHomeMode", "mode", title: "Mode for armed home", multiple: false, required: false
         }
 
+        section("Verisure installation") {
+            paragraph "WARNING: Untested territory"
+            paragraph "IF you have multiple sites, you can change which installation to use. Use at your own risk. Leave default if you are not sure."
+            input "installationNumber", "number", "title": "Installation number", defaultValue: 0
+        }
+
         section("Remote logging? (Works with Splunk)") {
+            paragraph "WARNING: Only enable this if you KNOW that you are planning to send your logs."
             paragraph "Only enable the below setting if you intend to send your logs somewhere else."
-            input "remoteLogEnabled", "bool", defaultValue: "true", title: "Enable remote logging?", required: false
+            input "remoteLogEnabled", "bool", defaultValue: "false", title: "Enable remote logging?"
             input "logUrl", "text", title: "Splunk URL to log to", required: false
             input "logToken", "text", title: "Splunk Authorization Token", required: false
         }
@@ -106,6 +114,7 @@ def updated() {
     debug("updated", "Settings updated")
     unsubscribe()
     unschedule()
+    resetState()
     initialize()
 }
 
@@ -152,11 +161,17 @@ def getAlarmState() {
 
 // -- Application logic
 
+def resetState() {
+    state.sessionCookie = null
+    state.sessionCookieTime = null
+    state.installationId = null
+}
+
 def checkPeriodically() {
     debug("transaction", " ===== START_UPDATE")
 
     // Handling some parameter setup, copying from settings to enable programmatically changing them
-    state.app_version = "0.6.1"
+    state.app_version = "0.6.3"
     state.remoteLogEnabled = remoteLogEnabled
     state.logUrl = logUrl
     state.logToken = logToken
@@ -175,8 +190,7 @@ def checkPeriodically() {
         def timeSinceCookie = new Date().time - Date.parse("yyyy-MM-dd'T'HH:mm:ssZ", state.sessionCookieTime).time
         if (timeSinceCookie > 172800000) { // 48 hours
             debug("checkPeriodically", "Session cookie gone stale. Baking a new one.")
-            state.sessionCookie = null
-            state.installationId = null
+            resetState()
         }
     }
 
@@ -228,7 +242,7 @@ def fetchInstallationId(sessionCookie) {
     ]
 
     httpGet(params) { response ->
-        def installationId = response.data[0]["giid"]
+        def installationId = response.data[installationNumber]["giid"]
         debug("fetchInstallationId", "Found installation id.")
         return installationId
     }
@@ -260,8 +274,7 @@ def checkResponse(context, response) {
             } else if (response.errorData.contains("XBN Database is not activated")) {
                 switchBaseUrl()
             }
-            state.sessionCookie = null
-            state.installationId = null
+            resetState()
             debug(context, "Response has error. sessionCookie and installationId is reset: " + response.errorData)
         } else {
             debug(context, "Did not get 200. Response code was: " + Integer.toString(response.status))
@@ -343,14 +356,14 @@ def parseContactSensorResponse(contactSensorDevice) {
 def parseDoorLockStatusResponse(doorLockStatus) {
     debug("parseDoorLockStatusResponse", "Parsing Door Lock Status")
     doorLockStatus.each { updatedJsonDevice ->
-      String lockState = updatedJsonDevice.currentLockState == "UNLOCKED" ? "unlocked" : "locked"
-      String method = updatedJsonDevice.method
-		  String timestamp = updatedJsonDevice.eventTime
-      String paired = updatedJsonDevice.paired
-      String motorJam = updatedJsonDevice.motorJam
+        String lockState = updatedJsonDevice.currentLockState == "UNLOCKED" ? "unlocked" : "locked"
+        String method = updatedJsonDevice.method
+        String timestamp = updatedJsonDevice.eventTime
+        String paired = updatedJsonDevice.paired
+        String motorJam = updatedJsonDevice.motorJam
 
-      if (!hasChildDevice(updatedJsonDevice.deviceLabel)) {
-        addChildDevice(app.namespace, "Verisure Door Lock Status", updatedJsonDevice.deviceLabel, null, [
+        if (!hasChildDevice(updatedJsonDevice.deviceLabel)) {
+            addChildDevice(app.namespace, "Verisure Door Lock Status", updatedJsonDevice.deviceLabel, null, [
                     "lock"     : lockState,
                     "method"   : method,
                     "paired"   : paired,
@@ -358,17 +371,17 @@ def parseDoorLockStatusResponse(doorLockStatus) {
                     "timestamp": timestamp,
                     "rawLock"  : updatedJsonDevice.currentLockState,
                     label      : updatedJsonDevice.area
-        ])
-        debug("doorLockStatusDevice.created: ", updatedJsonDevice.toString())
-      }
-      def existingDevice = getChildDevice(updatedJsonDevice.deviceLabel)
-      debug("doorLockStatusDevice.updated", updatedJsonDevice.area + " | lock: " + lockState + " | rawLock: " + updatedJsonDevice.currentLockState + " | method: " + method + " | paired: " + paired + " | motorJam: " + motorJam + " | timestamp: " + timestamp, false)
-      existingDevice.sendEvent(name: "lock", value: lockState)
-      existingDevice.sendEvent(name: "method", value: method)
-      existingDevice.sendEvent(name: "paired", value: paired)
-      existingDevice.sendEvent(name: "motorJam", value: motorJam)
-      existingDevice.sendEvent(name: "timestamp", value: timestamp)
-      existingDevice.sendEvent(name: "rawLock", value: updatedJsonDevice.currentLockState)
+            ])
+            debug("doorLockStatusDevice.created: ", updatedJsonDevice.toString())
+        }
+        def existingDevice = getChildDevice(updatedJsonDevice.deviceLabel)
+        debug("doorLockStatusDevice.updated", updatedJsonDevice.area + " | lock: " + lockState + " | rawLock: " + updatedJsonDevice.currentLockState + " | method: " + method + " | paired: " + paired + " | motorJam: " + motorJam + " | timestamp: " + timestamp, false)
+        existingDevice.sendEvent(name: "lock", value: lockState)
+        existingDevice.sendEvent(name: "method", value: method)
+        existingDevice.sendEvent(name: "paired", value: paired)
+        existingDevice.sendEvent(name: "motorJam", value: motorJam)
+        existingDevice.sendEvent(name: "timestamp", value: timestamp)
+        existingDevice.sendEvent(name: "rawLock", value: updatedJsonDevice.currentLockState)
 
     }
 }
